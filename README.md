@@ -30,7 +30,7 @@
 npm install -g claudedeploy
 
 # Or install locally
-git clone https://github.com/your-username/claudedeploy.git
+git clone https://github.com/mfzzf/claudedeploy.git
 cd claudedeploy
 npm install
 npm link
@@ -203,8 +203,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/claudedeploy/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/claudedeploy/discussions)
+- **Issues**: [GitHub Issues](https://github.com/mfzzf/claudedeploy/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mfzzf/claudedeploy/discussions)
 
 ## 🎯 Roadmap
 

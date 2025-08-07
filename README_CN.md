@@ -30,7 +30,7 @@
 npm install -g claudedeploy
 
 # 或者本地安装
-git clone https://github.com/your-username/claudedeploy.git
+git clone https://github.com/mfzzf/claudedeploy.git
 cd claudedeploy
 npm install
 npm link
@@ -203,8 +203,8 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 
 ## 🆘 支持
 
-- **问题反馈**: [GitHub Issues](https://github.com/your-username/claudedeploy/issues)
-- **讨论**: [GitHub Discussions](https://github.com/your-username/claudedeploy/discussions)
+- **问题反馈**: [GitHub Issues](https://github.com/mfzzf/claudedeploy/issues)
+- **讨论**: [GitHub Discussions](https://github.com/mfzzf/claudedeploy/discussions)
 
 ## 🎯 路线图
 
