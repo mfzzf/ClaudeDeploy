@@ -29,7 +29,7 @@ jobs:
             target: windows-x64
             arch: x64
             binary_name: claudedeploy.exe
-            asset_name: claudedeploy-win-x64.exe
+            asset_name: claudedeploy-win-x64
           
           # macOS builds (x64 and ARM64)
           - os: macos-latest
@@ -99,17 +99,32 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R ./binaries
 
-      - name: Make binaries executable (Unix)
+      - name: Prepare release assets
         run: |
-          chmod +x ./binaries/*/claudedeploy || true
+          mkdir -p ./release-assets
+          
+          # Copy and rename binaries with proper platform-specific names
+          cp ./binaries/claudedeploy-linux-x64/claudedeploy ./release-assets/claudedeploy-linux-x64
+          cp ./binaries/claudedeploy-linux-arm64/claudedeploy ./release-assets/claudedeploy-linux-arm64
+          cp ./binaries/claudedeploy-macos-x64/claudedeploy ./release-assets/claudedeploy-macos-x64
+          cp ./binaries/claudedeploy-macos-arm64/claudedeploy ./release-assets/claudedeploy-macos-arm64
+          cp ./binaries/claudedeploy-win-x64.exe/claudedeploy.exe ./release-assets/claudedeploy-win-x64.exe
+          
+          # Make Unix binaries executable
+          chmod +x ./release-assets/claudedeploy-linux-*
+          chmod +x ./release-assets/claudedeploy-macos-*
+          
+          # Display final assets
+          ls -la ./release-assets/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            ./binaries/*/claudedeploy*
+          files: ./release-assets/*
           generate_release_notes: true
           draft: false
           prerelease: false
+          fail_on_unmatched_files: true
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
