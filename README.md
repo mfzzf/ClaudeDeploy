@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)](https://nodejs.org/)
 
-**Deploy Claude Code to any server in seconds**
+**Universal Claude Code installer - works on your computer and remote servers**
 
 [中文文档](README_CN.md) | [English](README.md)
 
@@ -14,12 +14,13 @@
 
 ## ✨ Features
 
-- 🔐 **Multiple SSH Authentication Methods** - SSH agent, key files, and password support
-- 📦 **Automatic Dependencies** - Node.js and npm installation if missing
+- 🖥️ **Local Installation** - Install Claude Code directly on Windows/macOS/Linux
+- 🔐 **Remote Installation** - SSH to any server with zero-config authentication
+- 📦 **Auto Dependencies** - Node.js/npm installation if missing
 - 🚀 **One-Command Setup** - Install Claude Code and Claude Code Router globally
-- ⚙️ **Config Migration** - Automatically copy local config.json to remote server
+- ⚙️ **Config Migration** - Optional config copying for remote servers
 - ✅ **Installation Verification** - Verify both tools are properly installed
-- 🎯 **Cross-Platform Support** - Ubuntu, CentOS, Amazon Linux, and more
+- 🎯 **Universal Support** - Works on any platform with Node.js
 
 ## 🚀 Quick Start
 
@@ -37,11 +38,20 @@ npm link
 
 ### Usage Examples
 
+#### 🖥️ Local Installation (Your Computer)
 ```bash
-# Use SSH agent (automatic, like ssh command)
+# Install Claude Code on your local computer
+claudedeploy --local
+
+# Works on Windows, macOS, and Linux
+```
+
+#### 🔐 Remote Installation (SSH Servers)
+```bash
+# Install on remote Ubuntu/CentOS server
 claudedeploy -h your-server.com -u username
 
-# Use specific SSH key
+# Use SSH key authentication
 claudedeploy -h 192.168.1.100 -u ubuntu -k ~/.ssh/id_rsa
 
 # Use password authentication
@@ -50,12 +60,18 @@ claudedeploy -h example.com -u ubuntu -p yourpassword
 # Custom port
 claudedeploy -h server.com -u ubuntu --port 2222
 
-# Legacy command (still supported)
-claude-remote-install -h server.com -u ubuntu
+# Skip config copying
+claudedeploy -h server.com -u ubuntu --skip-config
 ```
 
 ## 📋 Command Line Options
 
+### Local Installation
+| Option | Description | Required |
+|--------|-------------|----------|
+| `--local` | Install on this local computer | ✅ |
+
+### Remote Installation
 | Option | Description | Required |
 |--------|-------------|----------|
 | `-h, --host <host>` | Remote server hostname or IP | ✅ |
@@ -64,19 +80,34 @@ claude-remote-install -h server.com -u ubuntu
 | `-k, --key <path>` | SSH private key file path | ❌ |
 | `--passphrase <passphrase>` | SSH key passphrase | ❌ |
 | `--port <port>` | SSH port (default: 22) | ❌ |
+| `--skip-config` | Skip copying config.json (for remote installation) | ❌ |
 
 ## 🔧 What It Does
 
+### Local Installation:
+1. **Checks** Node.js installation on your computer
+2. **Installs** Claude Code globally: `npm install -g @anthropic-ai/claude-code`
+3. **Installs** Claude Code Router globally: `npm install -g @musistudio/claude-code-router`
+4. **Verifies** both tools are working locally
+
+### Remote Installation:
 1. **Connects** to your remote server via SSH
 2. **Checks** Node.js and npm installation
 3. **Installs** Node.js and npm if needed
-4. **Installs** Claude Code globally: `npm install -g @anthropic-ai/claude-code`
-5. **Installs** Claude Code Router globally: `npm install -g @musistudio/claude-code-router`
-6. **Copies** your local `~/.claude-code-router/config.json` to remote server
-7. **Verifies** both tools are working correctly
+4. **Installs** Claude Code and Claude Code Router globally
+5. **Copies** your local config.json to remote server (optional)
+6. **Verifies** both tools are working correctly
 
 ## 🖥️ Supported Platforms
 
+### Local Installation:
+- Windows 10/11
+- macOS 10.15+
+- Ubuntu 18.04+
+- CentOS 7+
+- Any system with Node.js 16+
+
+### Remote Installation:
 - Ubuntu/Debian
 - CentOS/RHEL
 - Amazon Linux
@@ -84,15 +115,33 @@ claude-remote-install -h server.com -u ubuntu
 
 ## 🛠️ Requirements
 
+### Local Installation:
+- Node.js 16.0.0 or higher
+- npm (comes with Node.js)
+
+### Remote Installation:
 - Node.js 16.0.0 or higher
 - SSH access to remote server
 - sudo privileges on remote server
 
 ## 📊 Example Output
 
+### Local Installation:
 ```bash
-🚀 Starting Claude Code remote installation...
+🚀 Installing Claude Code locally...
+✅ Node.js is already installed
+✅ Installing Claude Code globally
+✅ Installing Claude Code Router globally
+✅ Verifying Claude Code installation
+✅ Verifying Claude Code Router installation
 
+✅ Claude Code installed successfully on your computer!
+🎉 You can now use `claude` and `ccr` commands locally.
+```
+
+### Remote Installation:
+```bash
+🚀 Installing Claude Code on remote server...
 ✅ Connected to remote server
 ✅ Checking Node.js installation
 ✅ Installing npm
@@ -102,8 +151,8 @@ claude-remote-install -h server.com -u ubuntu
 ✅ Verifying Claude Code installation
 ✅ Verifying Claude Code Router installation
 
-✅ Claude Code installation completed successfully!
-You can now use Claude Code on your remote server.
+✅ Claude Code installed successfully on remote server!
+🎉 You can now use Claude Code on your remote server.
 ```
 
 ## 🤝 Contributing
