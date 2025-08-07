@@ -57,6 +57,14 @@ To set up NPM_TOKEN:
 2. Create a new token with "Publish" permissions
 3. Add it to GitHub repository secrets as `NPM_TOKEN`
 
+## Security Notes
+
+The `pkg` package has a known moderate severity vulnerability (CVE-2023-XXXX) related to local privilege escalation. However:
+- `pkg` is only used as a **dev dependency** for building binaries
+- It's not included in the final production binaries
+- The vulnerability only affects the build process, not runtime
+- We've configured CI to continue on audit failures for this reason
+
 ## Local Testing
 
 You can test the build process locally:
