@@ -103,19 +103,42 @@ jobs:
         run: |
           mkdir -p ./release-assets
           
+          # Debug: Show exactly what we have
+          echo "=== Available artifacts ==="
+          find ./binaries -type f -name "*" | sort
+          echo "=========================="
+          
           # Copy and rename binaries with proper platform-specific names
-          cp ./binaries/claudedeploy-linux-x64/claudedeploy ./release-assets/claudedeploy-linux-x64
-          cp ./binaries/claudedeploy-linux-arm64/claudedeploy ./release-assets/claudedeploy-linux-arm64
-          cp ./binaries/claudedeploy-macos-x64/claudedeploy ./release-assets/claudedeploy-macos-x64
-          cp ./binaries/claudedeploy-macos-arm64/claudedeploy ./release-assets/claudedeploy-macos-arm64
-          cp ./binaries/claudedeploy-win-x64.exe/claudedeploy.exe ./release-assets/claudedeploy-win-x64.exe
+          # Handle Unix binaries
+          if [ -f "./binaries/claudedeploy-linux-x64/claudedeploy" ]; then
+            cp ./binaries/claudedeploy-linux-x64/claudedeploy ./release-assets/claudedeploy-linux-x64
+          fi
+          
+          if [ -f "./binaries/claudedeploy-linux-arm64/claudedeploy" ]; then
+            cp ./binaries/claudedeploy-linux-arm64/claudedeploy ./release-assets/claudedeploy-linux-arm64
+          fi
+          
+          if [ -f "./binaries/claudedeploy-macos-x64/claudedeploy" ]; then
+            cp ./binaries/claudedeploy-macos-x64/claudedeploy ./release-assets/claudedeploy-macos-x64
+          fi
+          
+          if [ -f "./binaries/claudedeploy-macos-arm64/claudedeploy" ]; then
+            cp ./binaries/claudedeploy-macos-arm64/claudedeploy ./release-assets/claudedeploy-macos-arm64
+          fi
+          
+          # Handle Windows binary (correct path based on asset_name)
+          if [ -f "./binaries/claudedeploy-win-x64/claudedeploy.exe" ]; then
+            cp ./binaries/claudedeploy-win-x64/claudedeploy.exe ./release-assets/claudedeploy-win-x64.exe
+          fi
           
           # Make Unix binaries executable
-          chmod +x ./release-assets/claudedeploy-linux-*
-          chmod +x ./release-assets/claudedeploy-macos-*
+          chmod +x ./release-assets/claudedeploy-linux-* 2>/dev/null || true
+          chmod +x ./release-assets/claudedeploy-macos-* 2>/dev/null || true
           
           # Display final assets
+          echo "=== Final release assets ==="
           ls -la ./release-assets/
+          echo "==========================="
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
