@@ -1,0 +1,31 @@
+{
+  "name": "claude-code-remote-installer",
+  "version": "1.0.0",
+  "description": "Automated installer for Claude Code on remote SSH servers",
+  "main": "index.js",
+  "bin": {
+    "claude-remote-install": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "claude-code",
+    "ssh",
+    "remote-install",
+    "automation",
+    "npm"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "ssh2": "^1.15.0",
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
