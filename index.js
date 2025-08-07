@@ -495,6 +495,10 @@ program
       await installer.generateUCloudConfig(options.ucloudKey, options.ucloudUrl);
     } else if (options.local) {
       // Local installation
+      if (options.ucloudKey) {
+        console.log(chalk.blue('🔧 Generating UCloud config for local installation...'));
+        await installer.generateUCloudConfig(options.ucloudKey, options.ucloudUrl);
+      }
       await installer.installLocal(options.registry);
     } else if (options.host && options.username) {
       // Remote installation

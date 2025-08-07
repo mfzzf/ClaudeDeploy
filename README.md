@@ -43,6 +43,12 @@ npm link
 # Install Claude Code on your local computer
 claudedeploy --local
 
+# Install with UCloud config generation
+claudedeploy --local --ucloud-key YOUR_API_KEY
+
+# Install with custom UCloud URL
+claudedeploy --local --ucloud-key YOUR_API_KEY --ucloud-url https://your-ucloud-domain.com
+
 # Install with Chinese npm registry
 claudedeploy --local --registry https://registry.npmmirror.com
 
@@ -70,12 +76,24 @@ claudedeploy -h server.com -u ubuntu --skip-config
 claudedeploy -h server.com -u ubuntu --registry https://registry.npmmirror.com
 ```
 
+#### ⚙️ UCloud Config Generation
+```bash
+# Generate config.json with UCloud API key
+claudedeploy --generate-config --ucloud-key YOUR_API_KEY
+
+# Generate with custom UCloud URL
+claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://your-ucloud-domain.com
+```
+
 ## 📋 Command Line Options
 
 ### Local Installation
 | Option | Description | Required |
 |--------|-------------|----------|
 | `--local` | Install on this local computer | ✅ |
+| `--ucloud-key <key>` | UCloud API key for config generation | ❌ |
+| `--ucloud-url <url>` | UCloud base URL (default: https://deepseek.modelverse.cn) | ❌ |
+| `--registry <registry>` | npm registry URL (e.g., https://registry.npmmirror.com) | ❌ |
 
 ### Remote Installation
 | Option | Description | Required |
@@ -88,6 +106,13 @@ claudedeploy -h server.com -u ubuntu --registry https://registry.npmmirror.com
 | `--port <port>` | SSH port (default: 22) | ❌ |
 | `--skip-config` | Skip copying config.json (for remote installation) | ❌ |
 | `--registry <registry>` | npm registry URL (e.g., https://registry.npmmirror.com) | ❌ |
+
+### UCloud Config Generation
+| Option | Description | Required |
+|--------|-------------|----------|
+| `--generate-config` | Generate UCloud config.json with API key | ✅ |
+| `--ucloud-key <key>` | UCloud API key for config generation | ✅ |
+| `--ucloud-url <url>` | UCloud base URL (default: https://deepseek.modelverse.cn) | ❌ |
 
 ## 🔧 What It Does
 

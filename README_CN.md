@@ -43,6 +43,12 @@ npm link
 # 在本地计算机上安装Claude Code
 claudedeploy --local
 
+# 使用UCloud配置生成安装
+claudedeploy --local --ucloud-key YOUR_API_KEY
+
+# 使用自定义UCloud URL安装
+claudedeploy --local --ucloud-key YOUR_API_KEY --ucloud-url https://your-ucloud-domain.com
+
 # 使用中国npm源安装
 claudedeploy --local --registry https://registry.npmmirror.com
 
@@ -70,12 +76,24 @@ claudedeploy -h server.com -u ubuntu --skip-config
 claudedeploy -h server.com -u ubuntu --registry https://registry.npmmirror.com
 ```
 
+#### ⚙️ UCloud配置生成
+```bash
+# 使用UCloud API密钥生成config.json
+claudedeploy --generate-config --ucloud-key YOUR_API_KEY
+
+# 使用自定义UCloud URL生成
+claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://your-ucloud-domain.com
+```
+
 ## 📋 命令行选项
 
 ### 本地安装
 | 选项 | 描述 | 是否必需 |
 |------|------|----------|
 | `--local` | 在此本地计算机上安装 | ✅ |
+| `--ucloud-key <key>` | UCloud API密钥用于配置生成 | ❌ |
+| `--ucloud-url <url>` | UCloud基础URL（默认：https://deepseek.modelverse.cn） | ❌ |
+| `--registry <registry>` | npm registry URL（例如：https://registry.npmmirror.com） | ❌ |
 
 ### 远程安装
 | 选项 | 描述 | 是否必需 |
@@ -88,6 +106,13 @@ claudedeploy -h server.com -u ubuntu --registry https://registry.npmmirror.com
 | `--port <port>` | SSH端口（默认22） | ❌ |
 | `--skip-config` | 跳过复制config.json（用于远程安装） | ❌ |
 | `--registry <registry>` | npm registry URL（例如：https://registry.npmmirror.com） | ❌ |
+
+### UCloud配置生成
+| 选项 | 描述 | 是否必需 |
+|------|------|----------|
+| `--generate-config` | 使用API密钥生成UCloud config.json | ✅ |
+| `--ucloud-key <key>` | UCloud API密钥用于配置生成 | ✅ |
+| `--ucloud-url <url>` | UCloud基础URL（默认：https://deepseek.modelverse.cn） | ❌ |
 
 ## 🔧 工作原理
 
