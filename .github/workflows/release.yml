@@ -101,9 +101,7 @@ jobs:
 
       - name: Make binaries executable (Unix)
         run: |
-          chmod +x ./binaries/*/claudedeploy-linux-*
-          chmod +x ./binaries/*/claudedeploy-macos-*
-          chmod +x ./binaries/*/claudedeploy-win-* || true
+          chmod +x ./binaries/*/claudedeploy || true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
