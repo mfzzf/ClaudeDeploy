@@ -98,6 +98,12 @@ claudedeploy -h server.com -u ubuntu --skip-config
 5. **Copies** your local config.json to remote server (optional)
 6. **Verifies** both tools are working correctly
 
+### UCloud Config Generation:
+1. **Fetches** available models from `/v1/models` endpoint
+2. **Filters** chat models (excludes image/text-to-image models)
+3. **Generates** optimized config.json with your API key
+4. **Includes** all available UCloud models automatically
+
 ## 🖥️ Supported Platforms
 
 ### Local Installation:

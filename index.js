@@ -46,11 +46,11 @@ class ClaudeRemoteInstaller {
         if (auth.passphrase) {
           connectionConfig.passphrase = auth.passphrase;
         }
+      } else if (auth.password) {
+        connectionConfig.password = auth.password;
       } else if (process.env.SSH_AUTH_SOCK) {
         // Use SSH agent for key management (like ssh-add)
         connectionConfig.agent = process.env.SSH_AUTH_SOCK;
-      } else if (auth.password) {
-        connectionConfig.password = auth.password;
       }
 
       this.conn.connect(connectionConfig);
@@ -226,6 +226,196 @@ class ClaudeRemoteInstaller {
     }
   }
 
+  async generateUCloudConfig(apiKey, baseUrl = 'https://deepseek.modelverse.cn') {
+    const configDir = path.join(os.homedir(), '.claude-code-router');
+    const configPath = path.join(configDir, 'config.json');
+    
+    try {
+      console.log(chalk.blue('🔍 Fetching available models from UCloud API...'));
+      
+      // Fetch models from API
+      const https = require('https');
+      const models = await this.fetchUCloudModels(baseUrl, apiKey);
+      
+      // Filter models to exclude image/text-to-image models and focus on chat models
+      const chatModels = models.filter(model => 
+        !model.includes('flux') && 
+        !model.includes('text-to-image') && 
+        !model.includes('multi') &&
+        !model.includes('image') &&
+        !model.includes('edit') &&
+        !model.includes('vl') &&
+        model.includes('deepseek') || 
+        model.includes('zai-org') || 
+        model.includes('moonshotai') || 
+        model.includes('glm') ||
+        model.includes('ernie') ||
+        model.includes('baidu') ||
+        model.includes('openai')||
+        model.includes('Qwen')
+      );
+
+      const finalModels = chatModels.length > 0 ? chatModels : [
+        "Qwen/Qwen3-Coder",
+        "moonshotai/Kimi-K2-Instruct", 
+        "deepseek-ai/DeepSeek-R1-0528",
+        "deepseek-ai/DeepSeek-V3-0324",
+        "zai-org/glm-4.5"
+      ];
+
+      const ucloudConfig = {
+        "LOG": false,
+        "CLAUDE_PATH": "",
+        "HOST": "127.0.0.1",
+        "PORT": 3456,
+        "APIKEY": "test123456",
+        "API_TIMEOUT_MS": "600000",
+        "PROXY_URL": "",
+        "Transformers": [],
+        "Providers": [
+          {
+            "name": "ucloud",
+            "api_base_url": `${baseUrl}/v1/chat/completions`,
+            "api_key": apiKey,
+            "models": finalModels,
+          }
+        ],
+        "Router": {
+          "default": "ucloud,moonshotai/Kimi-K2-Instruct",
+          "background": "ucloud,moonshotai/Kimi-K2-Instruct",
+          "think": "ucloud,moonshotai/Kimi-K2-Instruct",
+          "longContext": "ucloud,moonshotai/Kimi-K2-Instruct",
+          "longContextThreshold": 60000,
+          "webSearch": "ucloud,moonshotai/Kimi-K2-Instruct"
+        }
+      };
+
+      // Create directory if it doesn't exist
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+
+      // Write config file
+      fs.writeFileSync(configPath, JSON.stringify(ucloudConfig, null, 2));
+      
+      console.log(chalk.green(`✅ UCloud config generated at: ${configPath}`));
+      console.log(chalk.blue(`🎯 Configured for: ${baseUrl}`));
+      console.log(chalk.yellow(`📋 Models available: ${models.join(', ')}`));
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Failed to generate UCloud config:'), error.message);
+      console.log(chalk.yellow('💡 Using default models instead...'));
+      
+      // Use actual fetched models or fallback to your exact format
+      const chatModels = models.filter(model => 
+        !model.includes('flux') && 
+        !model.includes('text-to-image') && 
+        !model.includes('multi') &&
+        !model.includes('image') &&
+        !model.includes('edit') &&
+        !model.includes('vl')
+      );
+
+      const finalModels = chatModels.length > 0 ? chatModels : [
+        "Qwen/Qwen3-Coder",
+        "moonshotai/Kimi-K2-Instruct",
+        "deepseek-ai/DeepSeek-R1-0528",
+        "deepseek-ai/DeepSeek-V3-0324",
+        "zai-org/glm-4.5"
+      ];
+
+      const fallbackConfig = {
+        "LOG": false,
+        "CLAUDE_PATH": "",
+        "HOST": "127.0.0.1",
+        "PORT": 3456,
+        "APIKEY": apiKey,
+        "API_TIMEOUT_MS": "600000",
+        "PROXY_URL": "",
+        "Transformers": [],
+        "Providers": [
+          {
+            "name": "ucloud",
+            "api_base_url": `${baseUrl}/v1/chat/completions`,
+            "api_key": apiKey,
+            "models": finalModels,
+            "transformer": {
+              "use": [
+                {
+                  "max_tokens": 16384
+                }
+              ]
+            }
+          }
+        ],
+        "Router": {
+          "default": "ucloud,moonshotai/Kimi-K2-Instruct",
+          "background": "ucloud,moonshotai/Kimi-K2-Instruct",
+          "think": "ucloud,Qwen/Qwen3-Coder",
+          "longContext": "ucloud,moonshotai/Kimi-K2-Instruct",
+          "longContextThreshold": 60000,
+          "webSearch": "ucloud,moonshotai/Kimi-K2-Instruct"
+        }
+      };
+
+      fs.writeFileSync(configPath, JSON.stringify(fallbackConfig, null, 2));
+      console.log(chalk.green(`✅ Fallback config generated at: ${configPath}`));
+    }
+  }
+
+  async fetchUCloudModels(baseUrl, apiKey) {
+    return new Promise((resolve, reject) => {
+      const https = require('https');
+      const url = new URL(`${baseUrl}/v1/models`);
+      
+      const options = {
+        hostname: url.hostname,
+        port: url.port || 443,
+        path: url.pathname,
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        res.on('end', () => {
+          try {
+            const response = JSON.parse(data);
+            if (response.data && Array.isArray(response.data)) {
+              const models = response.data.map(model => model.id || model.name).filter(Boolean);
+              resolve(models.length > 0 ? models : ["deepseek-chat", "deepseek-reasoner"]);
+            } else {
+              resolve(["deepseek-chat", "deepseek-reasoner"]);
+            }
+          } catch (error) {
+            console.warn(chalk.yellow('⚠️  Could not parse API response, using default models'));
+            resolve(["deepseek-chat", "deepseek-reasoner"]);
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        console.warn(chalk.yellow('⚠️  Could not fetch models from API, using default models'));
+        resolve(["deepseek-chat", "deepseek-reasoner"]);
+      });
+
+      req.setTimeout(5000, () => {
+        console.warn(chalk.yellow('⚠️  API request timeout, using default models'));
+        resolve(["deepseek-chat", "deepseek-reasoner"]);
+      });
+
+      req.end();
+    });
+  }
+
   async executeCommandLocally(command) {
     return new Promise((resolve, reject) => {
       const { exec } = require('child_process');
@@ -278,6 +468,9 @@ program
   .description('Universal Claude Code installer - works on local computer and remote servers')
   .version('1.0.0')
   .option('--local', 'Install Claude Code on this local computer')
+  .option('--generate-config', 'Generate UCloud config.json with API key')
+  .option('--ucloud-key <key>', 'UCloud API key for config generation')
+  .option('--ucloud-url <url>', 'UCloud base URL (default: https://deepseek.modelverse.cn)', 'https://deepseek.modelverse.cn')
   .option('-h, --host <host>', 'Remote server hostname or IP (for remote installation)')
   .option('-u, --username <username>', 'SSH username (for remote installation)')
   .option('-p, --password <password>', 'SSH password (will prompt if not provided)')
@@ -288,7 +481,15 @@ program
   .action(async (options) => {
     const installer = new ClaudeRemoteInstaller();
     
-    if (options.local) {
+    if (options.generateConfig) {
+      // Generate UCloud config
+      if (!options.ucloudKey) {
+        console.error(chalk.red('❌ --ucloud-key is required for config generation'));
+        process.exit(1);
+      }
+      
+      await installer.generateUCloudConfig(options.ucloudKey, options.ucloudUrl);
+    } else if (options.local) {
       // Local installation
       await installer.installLocal();
     } else if (options.host && options.username) {
@@ -296,8 +497,13 @@ program
       const fs = require('fs');
       let auth = {};
       
-      // Handle SSH key authentication
-      if (options.key) {
+      // Handle authentication priority: explicit password > explicit key > SSH agent > default keys
+      if (options.password) {
+        // Use explicit password if provided
+        auth.password = options.password;
+        console.log(chalk.blue('Using provided password for authentication'));
+      } else if (options.key) {
+        // Use explicit SSH key if provided
         try {
           const keyPath = options.key.startsWith('~/') 
             ? path.join(os.homedir(), options.key.slice(2)) 
@@ -309,6 +515,7 @@ program
           }
           
           auth.privateKey = fs.readFileSync(keyPath);
+          console.log(chalk.blue(`Using SSH key: ${keyPath}`));
           
           if (options.passphrase) {
             auth.passphrase = options.passphrase;
@@ -345,11 +552,13 @@ program
           path.join(os.homedir(), '.ssh', 'id_ecdsa')
         ];
         
+        let foundKey = false;
         for (const keyPath of defaultKeys) {
           if (fs.existsSync(keyPath)) {
             try {
               auth.privateKey = fs.readFileSync(keyPath);
               console.log(chalk.blue(`Using SSH key: ${keyPath}`));
+              foundKey = true;
               break;
             } catch (error) {
               console.warn(chalk.yellow(`Could not read key ${keyPath}: ${error.message}`));
@@ -358,7 +567,7 @@ program
         }
         
         // Fallback to password if no keys found
-        if (!auth.privateKey && !process.env.SSH_AUTH_SOCK) {
+        if (!foundKey) {
           let password = options.password;
           
           if (!password) {
@@ -382,10 +591,10 @@ program
 
       await installer.installRemote(options.host, options.username, auth, parseInt(options.port), options.skipConfig);
     } else {
-      console.error(chalk.red('❌ Please specify either --local for local installation or -h/-u for remote installation'));
-      console.log(chalk.yellow('💡 Examples:'));
-      console.log(chalk.yellow('  claudedeploy --local                    # Install on this computer'));
-      console.log(chalk.yellow('  claudedeploy -h server.com -u ubuntu    # Install on remote server'));
+      console.error(chalk.red('❌ Please specify one of:'));
+      console.log(chalk.yellow('  claudedeploy --generate-config --ucloud-key YOUR_KEY    # Generate UCloud config'));
+      console.log(chalk.yellow('  claudedeploy --local                                      # Install on this computer'));
+      console.log(chalk.yellow('  claudedeploy -h server.com -u username                    # Install on remote server'));
       process.exit(1);
     }
   });
