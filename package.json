@@ -4,11 +4,11 @@
   "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/claudedeploy.git"
+    "url": "https://github.com/mfzzf/ClaudeDeploy.git"
   },
-  "homepage": "https://github.com/your-username/claudedeploy#readme",
+  "homepage": "https://github.com/mfzzf/ClaudeDeploy#readme",
   "bugs": {
-    "url": "https://github.com/your-username/claudedeploy/issues"
+    "url": "https://github.com/mfzzf/ClaudeDeploy/issues"
   },
   "main": "index.js",
   "bin": {
