@@ -123,9 +123,10 @@ class ClaudeRemoteInstaller {
     }
   }
 
-  async installClaudeCode() {
-    await this.executeCommand('sudo npm install -g @anthropic-ai/claude-code', 'Installing Claude Code');
-    await this.executeCommand('sudo npm install -g @musistudio/claude-code-router', 'Installing Claude Code Router');
+  async installClaudeCode(registry = null) {
+    const registryFlag = registry ? ` --registry=${registry}` : '';
+    await this.executeCommand(`sudo npm install -g @anthropic-ai/claude-code${registryFlag}`, 'Installing Claude Code');
+    await this.executeCommand(`sudo npm install -g @musistudio/claude-code-router${registryFlag}`, 'Installing Claude Code Router');
   }
 
   async copyConfigFile(username, skipConfig = false) {
@@ -195,7 +196,7 @@ class ClaudeRemoteInstaller {
     }
   }
 
-  async installLocal() {
+  async installLocal(registry = null) {
     console.log(chalk.blue.bold('🚀 Installing Claude Code locally...\n'));
     
     try {
@@ -210,8 +211,9 @@ class ClaudeRemoteInstaller {
       }
 
       // Install Claude Code locally
-      await this.executeCommandLocally('npm install -g @anthropic-ai/claude-code');
-      await this.executeCommandLocally('npm install -g @musistudio/claude-code-router');
+      const registryFlag = registry ? ` --registry=${registry}` : '';
+      await this.executeCommandLocally(`npm install -g @anthropic-ai/claude-code${registryFlag}`);
+      await this.executeCommandLocally(`npm install -g @musistudio/claude-code-router${registryFlag}`);
       
       // Verify installation
       await this.executeCommandLocally('claude --version');
@@ -433,7 +435,7 @@ class ClaudeRemoteInstaller {
     });
   }
 
-  async installRemote(host, username, auth, port, skipConfig = false) {
+  async installRemote(host, username, auth, port, skipConfig = false, registry = null) {
     try {
       console.log(chalk.blue.bold('🚀 Installing Claude Code on remote server...\n'));
 
@@ -446,7 +448,7 @@ class ClaudeRemoteInstaller {
       }
 
       await this.installNpm();
-      await this.installClaudeCode();
+      await this.installClaudeCode(registry);
       await this.copyConfigFile(username, skipConfig);
       await this.verifyInstallation();
 
@@ -478,6 +480,7 @@ program
   .option('--passphrase <passphrase>', 'SSH key passphrase (will prompt if not provided)')
   .option('--port <port>', 'SSH port (default: 22)', '22')
   .option('--skip-config', 'Skip copying config.json (for remote installation)')
+  .option('--registry <registry>', 'npm registry URL (e.g., https://registry.npmmirror.com)')
   .action(async (options) => {
     const installer = new ClaudeRemoteInstaller();
     
@@ -491,7 +494,7 @@ program
       await installer.generateUCloudConfig(options.ucloudKey, options.ucloudUrl);
     } else if (options.local) {
       // Local installation
-      await installer.installLocal();
+      await installer.installLocal(options.registry);
     } else if (options.host && options.username) {
       // Remote installation
       const fs = require('fs');
@@ -589,7 +592,7 @@ program
         }
       }
 
-      await installer.installRemote(options.host, options.username, auth, parseInt(options.port), options.skipConfig);
+      await installer.installRemote(options.host, options.username, auth, parseInt(options.port), options.skipConfig, options.registry);
     } else {
       console.error(chalk.red('❌ Please specify one of:'));
       console.log(chalk.yellow('  claudedeploy --generate-config --ucloud-key YOUR_KEY    # Generate UCloud config'));

@@ -43,6 +43,9 @@ npm link
 # 在本地计算机上安装Claude Code
 claudedeploy --local
 
+# 使用中国npm源安装
+claudedeploy --local --registry https://registry.npmmirror.com
+
 # 支持Windows、macOS和Linux
 ```
 
@@ -62,6 +65,9 @@ claudedeploy -h server.com -u ubuntu --port 2222
 
 # 跳过配置文件复制
 claudedeploy -h server.com -u ubuntu --skip-config
+
+# 使用中国npm源（淘宝）
+claudedeploy -h server.com -u ubuntu --registry https://registry.npmmirror.com
 ```
 
 ## 📋 命令行选项
@@ -81,6 +87,7 @@ claudedeploy -h server.com -u ubuntu --skip-config
 | `--passphrase <passphrase>` | SSH密钥密码 | ❌ |
 | `--port <port>` | SSH端口（默认22） | ❌ |
 | `--skip-config` | 跳过复制config.json（用于远程安装） | ❌ |
+| `--registry <registry>` | npm registry URL（例如：https://registry.npmmirror.com） | ❌ |
 
 ## 🔧 工作原理
 

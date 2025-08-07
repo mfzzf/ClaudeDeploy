@@ -43,6 +43,9 @@ npm link
 # Install Claude Code on your local computer
 claudedeploy --local
 
+# Install with Chinese npm registry
+claudedeploy --local --registry https://registry.npmmirror.com
+
 # Works on Windows, macOS, and Linux
 ```
 
@@ -62,6 +65,9 @@ claudedeploy -h server.com -u ubuntu --port 2222
 
 # Skip config copying
 claudedeploy -h server.com -u ubuntu --skip-config
+
+# Use Chinese npm registry (Taobao)
+claudedeploy -h server.com -u ubuntu --registry https://registry.npmmirror.com
 ```
 
 ## 📋 Command Line Options
@@ -81,6 +87,7 @@ claudedeploy -h server.com -u ubuntu --skip-config
 | `--passphrase <passphrase>` | SSH key passphrase | ❌ |
 | `--port <port>` | SSH port (default: 22) | ❌ |
 | `--skip-config` | Skip copying config.json (for remote installation) | ❌ |
+| `--registry <registry>` | npm registry URL (e.g., https://registry.npmmirror.com) | ❌ |
 
 ## 🔧 What It Does
 
