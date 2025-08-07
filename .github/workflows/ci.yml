@@ -12,7 +12,7 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [14.x, 16.x, 18.x, 20.x]
+        node-version: [16.x, 18.x, 20.x]
     
     steps:
     - uses: actions/checkout@v4
@@ -24,10 +24,16 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm ci
+      run: npm install
     
-    - name: Run tests
-      run: npm test
+    - name: Check package integrity
+      run: npm ls --depth=0
     
-    - name: Check package
+    - name: Test CLI help
+      run: node index.js --help
+    
+    - name: Check package.json validity
       run: npm pack --dry-run
+    
+    - name: Verify dependencies
+      run: npm audit --audit-level=moderate

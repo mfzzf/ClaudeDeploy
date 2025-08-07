@@ -220,8 +220,8 @@ class ClaudeRemoteInstaller {
 
 // CLI interface
 program
-  .name('claude-remote-install')
-  .description('Automated installer for Claude Code on remote SSH servers')
+  .name('claudedeploy')
+  .description('Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication')
   .version('1.0.0')
   .requiredOption('-h, --host <host>', 'Remote server hostname or IP')
   .requiredOption('-u, --username <username>', 'SSH username')

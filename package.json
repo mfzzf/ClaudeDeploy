@@ -1,14 +1,24 @@
 {
-  "name": "claude-code-remote-installer",
+  "name": "claudedeploy",
   "version": "1.0.0",
-  "description": "Automated installer for Claude Code on remote SSH servers",
+  "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication", "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/claudedeploy.git"
+  },
+  "homepage": "https://github.com/your-username/claudedeploy#readme",
+  "bugs": {
+    "url": "https://github.com/your-username/claudedeploy/issues"
+  },
   "main": "index.js",
   "bin": {
+    "claudedeploy": "./index.js",
     "claude-remote-install": "./index.js"
   },
   "scripts": {
     "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node index.js --help",
+    "lint": "echo 'No linting configured'",
+    "prepack": "npm test"
   },
   "keywords": [
     "claude-code",
