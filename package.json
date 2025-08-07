@@ -1,6 +1,6 @@
 {
   "name": "claudedeploy",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication", "repository": {
     "type": "git",
     "url": "https://github.com/your-username/claudedeploy.git"
@@ -36,6 +36,6 @@
     "ora": "^5.4.1"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   }
 }

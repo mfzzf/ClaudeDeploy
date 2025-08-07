@@ -465,10 +465,11 @@ class ClaudeRemoteInstaller {
 }
 
 // CLI interface
+const packageJson = require('./package.json');
 program
   .name('claudedeploy')
   .description('Universal Claude Code installer - works on local computer and remote servers')
-  .version('1.0.0')
+  .version(packageJson.version)
   .option('--local', 'Install Claude Code on this local computer')
   .option('--generate-config', 'Generate UCloud config.json with API key')
   .option('--ucloud-key <key>', 'UCloud API key for config generation')
