@@ -1,7 +1,8 @@
 {
   "name": "claudedeploy",
   "version": "1.0.5",
-  "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication", "repository": {
+  "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication",
+  "repository": {
     "type": "git",
     "url": "https://github.com/your-username/claudedeploy.git"
   },
@@ -30,10 +31,11 @@
   "author": "jason.mei",
   "license": "MIT",
   "dependencies": {
-    "ssh2": "^1.15.0",
-    "commander": "^11.1.0",
     "chalk": "^4.1.2",
-    "ora": "^5.4.1"
+    "claudedeploy": "^1.0.4",
+    "commander": "^11.1.0",
+    "ora": "^5.4.1",
+    "ssh2": "^1.15.0"
   },
   "engines": {
     "node": ">=16.0.0"
