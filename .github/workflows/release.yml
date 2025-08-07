@@ -26,36 +26,31 @@ jobs:
         include:
           # Windows builds
           - os: windows-latest
-            target: x86_64-pc-windows-msvc
+            target: win-x64
             arch: x64
             binary_name: claudedeploy.exe
             asset_name: claudedeploy-windows-x86_64.exe
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
-            arch: arm64
-            binary_name: claudedeploy.exe
-            asset_name: claudedeploy-windows-arm64.exe
           
-          # macOS builds
+          # macOS builds (x64 and ARM64)
           - os: macos-latest
-            target: x86_64-apple-darwin
+            target: macos-x64
             arch: x64
             binary_name: claudedeploy
             asset_name: claudedeploy-macos-x86_64
           - os: macos-latest
-            target: aarch64-apple-darwin
+            target: macos-arm64
             arch: arm64
             binary_name: claudedeploy
             asset_name: claudedeploy-macos-arm64
           
-          # Linux builds
+          # Linux builds (x64 and ARM64)
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+            target: linux-x64
             arch: x64
             binary_name: claudedeploy
             asset_name: claudedeploy-linux-x86_64
           - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
+            target: linux-arm64
             arch: arm64
             binary_name: claudedeploy
             asset_name: claudedeploy-linux-arm64
@@ -71,7 +66,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --audit-level=moderate || true --audit-level=moderate || true
+        run: npm ci --audit-level=moderate || true
 
       - name: Install pkg
         run: npm install -g pkg

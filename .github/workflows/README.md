@@ -37,11 +37,10 @@ Each release will include the following binaries:
 
 | Platform | Architecture | Filename |
 |----------|--------------|----------|
-| Windows | x86_64 | `claudedeploy-windows-x86_64.exe` |
-| Windows | ARM64 | `claudedeploy-windows-arm64.exe` |
-| macOS | x86_64 | `claudedeploy-macos-x86_64` |
+| Windows | x86_64 | `claudedeploy-win-x64.exe` |
+| macOS | x86_64 | `claudedeploy-macos-x64` |
 | macOS | ARM64 | `claudedeploy-macos-arm64` |
-| Linux | x86_64 | `claudedeploy-linux-x86_64` |
+| Linux | x86_64 | `claudedeploy-linux-x64` |
 | Linux | ARM64 | `claudedeploy-linux-arm64` |
 
 ## Required Secrets
@@ -85,7 +84,7 @@ ls -la dist/
 
 ## Architecture Support
 
-- **Windows**: x86_64, ARM64
+- **Windows**: x86_64 (ARM64 not supported by pkg)
 - **macOS**: x86_64 (Intel), ARM64 (Apple Silicon)
 - **Linux**: x86_64, ARM64
 

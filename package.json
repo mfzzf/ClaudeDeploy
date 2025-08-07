@@ -1,6 +1,6 @@
 {
   "name": "claudedeploy",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication",
   "repository": {
     "type": "git",
@@ -21,7 +21,7 @@
     "lint": "echo 'No linting configured'",
     "prepack": "npm test",
     "build": "pkg . --out-path dist/",
-    "build:all": "pkg . --targets node18-win-x64,node18-win-arm64,node18-macos-x64,node18-macos-arm64,node18-linux-x64,node18-linux-arm64 --out-path dist/"
+    "build:all": "pkg . --targets node18-win-x64,node18-macos-x64,node18-linux-x64,node18-macos-arm64,node18-linux-arm64 --out-path dist/"
   },
   "keywords": [
     "claude-code",
@@ -51,10 +51,9 @@
     ],
     "targets": [
       "node18-win-x64",
-      "node18-win-arm64",
       "node18-macos-x64",
-      "node18-macos-arm64",
       "node18-linux-x64",
+      "node18-macos-arm64",
       "node18-linux-arm64"
     ],
     "outputPath": "dist"
