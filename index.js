@@ -202,14 +202,39 @@ class ClaudeRemoteInstaller {
     try {
       // Check if Node.js is installed locally
       try {
-        // First try to find node executable
-        const nodeCheckCommand = process.platform === 'win32' ? 'where node' : 'which node';
-        await this.executeCommandLocally(nodeCheckCommand);
-        await this.executeCommandLocally('node --version');
-        console.log(chalk.green('✅ Node.js is already installed'));
+        const isPackaged = process.pkg !== undefined;
+        
+        if (isPackaged) {
+          // When running as packaged binary, try to find the actual node executable
+          // We need to look for node binary explicitly, not run 'node' command
+          const nodeCheckCommand = process.platform === 'win32' ? 'where node.exe' : 'which node';
+          const nodePath = await this.executeCommandLocally(nodeCheckCommand);
+          
+          // Verify node is working by getting its version using full path
+          const actualNodePath = nodePath.trim().split('\n')[0]; // Get first line if multiple paths
+          await this.executeCommandLocally(`"${actualNodePath}" --version`);
+          console.log(chalk.green('✅ Node.js is already installed'));
+        } else {
+          // When running as normal Node.js script
+          const nodeCheckCommand = process.platform === 'win32' ? 'where node' : 'which node';
+          await this.executeCommandLocally(nodeCheckCommand);
+          await this.executeCommandLocally('node --version');
+          console.log(chalk.green('✅ Node.js is already installed'));
+        }
       } catch (error) {
         console.log(chalk.red('❌ Node.js is not installed locally'));
         console.log(chalk.yellow('💡 Please install Node.js from https://nodejs.org/'));
+        console.log(chalk.gray('   After installing Node.js, make sure it\'s in your PATH'));
+        process.exit(1);
+      }
+
+      // Check if npm is available
+      try {
+        await this.executeCommandLocally('npm --version');
+        console.log(chalk.green('✅ npm is available'));
+      } catch (error) {
+        console.log(chalk.red('❌ npm is not available'));
+        console.log(chalk.yellow('💡 Please ensure npm is installed with Node.js'));
         process.exit(1);
       }
 
@@ -426,12 +451,25 @@ class ClaudeRemoteInstaller {
       const { exec } = require('child_process');
       const spinner = ora(`Running: ${command}`).start();
       
-      exec(command, {
-        env: process.env,
-        shell: true
-      }, (error, stdout, stderr) => {
+      // For packaged binaries, we need to ensure PATH is properly inherited
+      const execOptions = {
+        env: {
+          ...process.env,
+          // Ensure PATH is properly set
+          PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin'
+        },
+        shell: true,
+        cwd: process.cwd()
+      };
+      
+      exec(command, execOptions, (error, stdout, stderr) => {
         if (error) {
           spinner.fail(`Failed: ${command}`);
+          // Provide more detailed error information
+          console.log(chalk.gray(`Error: ${error.message}`));
+          if (stderr) {
+            console.log(chalk.gray(`Stderr: ${stderr.trim()}`));
+          }
           reject(error);
         } else {
           spinner.succeed(`Completed: ${command}`);
