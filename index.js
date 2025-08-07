@@ -202,6 +202,9 @@ class ClaudeRemoteInstaller {
     try {
       // Check if Node.js is installed locally
       try {
+        // First try to find node executable
+        const nodeCheckCommand = process.platform === 'win32' ? 'where node' : 'which node';
+        await this.executeCommandLocally(nodeCheckCommand);
         await this.executeCommandLocally('node --version');
         console.log(chalk.green('✅ Node.js is already installed'));
       } catch (error) {
@@ -423,7 +426,10 @@ class ClaudeRemoteInstaller {
       const { exec } = require('child_process');
       const spinner = ora(`Running: ${command}`).start();
       
-      exec(command, (error, stdout, stderr) => {
+      exec(command, {
+        env: process.env,
+        shell: true
+      }, (error, stdout, stderr) => {
         if (error) {
           spinner.fail(`Failed: ${command}`);
           reject(error);
