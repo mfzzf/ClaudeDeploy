@@ -1,6 +1,31 @@
 name: CI
 
 on:
+  pull_request:
+    paths:
+      - '**/*.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.eslintrc.json'
+      - '.prettierrc*'
+      - '.github/workflows/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.title, '[skip ci]') && !contains(github.event.pull_request.body, '[skip ci]') && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run lint --silent
+name: CI
+
+on:
   push:
     branches: [ main, develop ]
   pull_request:

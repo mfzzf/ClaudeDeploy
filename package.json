@@ -1,6 +1,6 @@
 {
   "name": "claudedeploy",
-  "version": "1.1.18",
+  "version": "1.1.19",
   "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication",
   "repository": {
     "type": "git",
@@ -10,15 +10,16 @@
   "bugs": {
     "url": "https://github.com/mfzzf/ClaudeDeploy/issues"
   },
-  "main": "index.js",
+  "main": "src/cli.js",
   "bin": {
-    "claudedeploy": "./index.js",
-    "claude-remote-install": "./index.js"
+    "claudedeploy": "./bin/claudedeploy.js",
+    "claude-remote-install": "./bin/claudedeploy.js"
   },
   "scripts": {
     "start": "node index.js",
     "test": "node index.js --help",
-    "lint": "echo 'No linting configured'",
+    "lint": "eslint . --ext .js",
+    "format": "prettier -w .",
     "prepack": "npm test",
     "build": "pkg . --out-path dist/",
     "build:all": "pkg . --targets node18-win-x64,node18-macos-x64,node18-linux-x64,node18-macos-arm64,node18-linux-arm64 --out-path dist/"
@@ -34,20 +35,24 @@
   "license": "MIT",
   "dependencies": {
     "chalk": "^4.1.2",
-    "claudedeploy": "^1.0.4",
     "commander": "^11.1.0",
     "ora": "^5.4.1",
     "ssh2": "^1.15.0"
   },
   "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
     "pkg": "^5.8.1"
   },
   "pkg": {
     "scripts": [
-      "index.js"
+      "src/cli.js"
     ],
     "assets": [
-      "package.json"
+      "package.json",
+      "src/**/*",
+      "bin/**/*"
     ],
     "targets": [
       "node18-win-x64",
@@ -58,6 +63,13 @@
     ],
     "outputPath": "dist"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "README_CN.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=16.0.0"
   }

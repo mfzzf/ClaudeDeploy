@@ -90,6 +90,8 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 ### Local Installation
 | Option | Description | Required |
 |--------|-------------|----------|
+| `--verbose` | Enable verbose output | ❌ |
+| `--dry-run` | Print commands without executing them | ❌ |
 | `--local` | Install on this local computer | ✅ |
 | `--ucloud-key <key>` | UCloud API key for config generation | ❌ |
 | `--ucloud-url <url>` | UCloud base URL (default: https://deepseek.modelverse.cn) | ❌ |
@@ -106,6 +108,7 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 | `--port <port>` | SSH port (default: 22) | ❌ |
 | `--skip-config` | Skip copying config.json (for remote installation) | ❌ |
 | `--registry <registry>` | npm registry URL (e.g., https://registry.npmmirror.com) | ❌ |
+| `--user-install` | Install without sudo (user-level global) | ❌ |
 
 ### UCloud Config Generation
 | Option | Description | Required |
@@ -115,6 +118,12 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 | `--ucloud-url <url>` | UCloud base URL (default: https://deepseek.modelverse.cn) | ❌ |
 
 ## 🔧 What It Does
+### Security Notes
+
+- Avoid passing passwords via CLI flags. Use the interactive prompt (input is hidden) or SSH agent.
+- Config files contain API keys. They are written with permission 600.
+- `--registry` is validated as a URL before use.
+
 
 ### Local Installation:
 1. **Checks** Node.js installation on your computer
@@ -196,6 +205,10 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+See `CONTRIBUTING.md` for details. This repo uses a lightweight CI:
+- CI runs only on Pull Requests and only lints changed JS/config/workflow files.
+- For docs-only changes, add `[skip ci]` in the PR title/description or label `skip-ci` to skip CI.
 
 ## 📄 License
 

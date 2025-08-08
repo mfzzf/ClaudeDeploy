@@ -90,6 +90,8 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 ### 本地安装
 | 选项 | 描述 | 是否必需 |
 |------|------|----------|
+| `--verbose` | 启用详细输出 | ❌ |
+| `--dry-run` | 仅打印命令不执行 | ❌ |
 | `--local` | 在此本地计算机上安装 | ✅ |
 | `--ucloud-key <key>` | UCloud API密钥用于配置生成 | ❌ |
 | `--ucloud-url <url>` | UCloud基础URL（默认：https://deepseek.modelverse.cn） | ❌ |
@@ -106,6 +108,7 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 | `--port <port>` | SSH端口（默认22） | ❌ |
 | `--skip-config` | 跳过复制config.json（用于远程安装） | ❌ |
 | `--registry <registry>` | npm registry URL（例如：https://registry.npmmirror.com） | ❌ |
+| `--user-install` | 不使用sudo安装（用户级全局） | ❌ |
 
 ### UCloud配置生成
 | 选项 | 描述 | 是否必需 |
@@ -115,6 +118,12 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 | `--ucloud-url <url>` | UCloud基础URL（默认：https://deepseek.modelverse.cn） | ❌ |
 
 ## 🔧 工作原理
+### 安全提示
+
+- 避免在命令行参数中明文传递密码。建议使用交互式输入（无回显）或SSH agent。
+- 配置文件包含API密钥，生成时权限为600。
+- `--registry` 会进行URL校验后再使用。
+
 
 ### 本地安装：
 1. **检查** 您计算机上的Node.js安装
@@ -196,6 +205,10 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 ## 🤝 贡献
 
 欢迎贡献！请随时提交Pull Request。
+
+详细请查看 `CONTRIBUTING.md`。本仓库采用轻量 CI：
+- CI 仅在 Pull Request 上触发，并且只对 JS/配置/工作流文件进行 Lint。
+- 文档类改动可在 PR 标题/描述加入 `[skip ci]` 或添加标签 `skip-ci` 来跳过 CI。
 
 ## 📄 许可证
 
