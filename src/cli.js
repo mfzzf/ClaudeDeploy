@@ -94,6 +94,8 @@ async function runCli() {
     .option('--generate-config', 'Generate OpenAI config.json with API key')
     .option('--openai-key <key>', 'OpenAI API key for config generation')
     .option('--openai-url <url>', 'OpenAI base URL (default: https://api.openai.com)', 'https://api.openai.com')
+    .option('--ucloud-key <key>', 'UCloud API key for config generation')
+    .option('--ucloud-url <url>', 'UCloud base URL (default: https://api.modelverse.cn)', 'https://api.modelverse.cn')
     .option('-h, --host <host>', 'Remote server hostname or IP (for remote installation)')
     .option('-u, --username <username>', 'SSH username (for remote installation)')
     .option('-p, --password <password>', 'SSH password (will prompt if not provided)')
@@ -105,14 +107,22 @@ async function runCli() {
     .option('--user-install', 'Install without sudo (user-level global)')
     .action(async (options) => {
       if (options.generateConfig) {
-        if (!options.openaiKey) {
-          console.error(chalk.red('❌ --openai-key is required for config generation'));
-          process.exit(1);
-        }
         const local = new LocalInstaller();
         local.verbose = !!options.verbose;
         local.dryRun = !!options.dryRun;
-        await local.generateOpenAIConfig(options.openaiKey, options.openaiUrl);
+        const providers = [];
+        if (options.openaiKey) {
+          providers.push({ name: 'openai', apiKey: options.openaiKey, apiUrl: options.openaiUrl });
+        }
+        if (options.ucloudKey) {
+          providers.push({ name: 'ucloud', apiKey: options.ucloudKey, apiUrl: options.ucloudUrl });
+        }
+        if (providers.length === 0) {
+          console.error(chalk.red('❌ Please provide at least one of --openai-key or --ucloud-key for config generation'));
+          process.exit(1);
+        }
+        console.log(chalk.blue('🔧 Generating config for provider(s): ' + providers.map(p => p.name).join(', ')));
+        await local.generateMultiProviderConfig(providers);
         return;
       }
 
@@ -120,9 +130,16 @@ async function runCli() {
         const local = new LocalInstaller();
         local.verbose = !!options.verbose;
         local.dryRun = !!options.dryRun;
+        const providers = [];
         if (options.openaiKey) {
-          console.log(chalk.blue('🔧 Generating OpenAI config for local installation...'));
-          await local.generateOpenAIConfig(options.openaiKey, options.openaiUrl);
+          providers.push({ name: 'openai', apiKey: options.openaiKey, apiUrl: options.openaiUrl });
+        }
+        if (options.ucloudKey) {
+          providers.push({ name: 'ucloud', apiKey: options.ucloudKey, apiUrl: options.ucloudUrl });
+        }
+        if (providers.length > 0) {
+          console.log(chalk.blue('🔧 Generating config for local installation...'));
+          await local.generateMultiProviderConfig(providers);
         }
         await local.installLocal(options.registry);
         printPathHints(false);

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Rocket, 
@@ -12,22 +13,17 @@ import {
   Download,
   Cloud,
   Key,
-  Globe,
-  Sparkles
+  Sparkles,
+  Copy
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
-import { Checkbox } from './ui/checkbox'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Textarea } from './ui/textarea'
 import { Badge } from './ui/badge'
-import { Progress } from './ui/progress'
 import { Switch } from './ui/switch'
-import { Alert, AlertDescription } from './ui/alert'
-import { useRef } from 'react'
 
 interface Provider {
   id: string
@@ -69,7 +65,6 @@ interface RemoteConfigUI {
 export default function ClaudeDeploy() {
   const [activeTab, setActiveTab] = useState('local')
   const [isInstalling, setIsInstalling] = useState(false)
-  const [installProgress, setInstallProgress] = useState(0)
   const [consoleOutput, setConsoleOutput] = useState<ConsoleLog[]>([])
   const [providers, setProviders] = useState<Record<string, Provider>>({
     openai: { id: 'openai', name: 'OpenAI', enabled: true, apiKey: '', url: 'https://api.openai.com' },
@@ -79,6 +74,24 @@ export default function ClaudeDeploy() {
   const [installations, setInstallations] = useState<Installation[]>([])
   const [wsConnected, setWsConnected] = useState(false)
   const consoleRef = useRef<HTMLDivElement>(null)
+  const [showFirstTimeTip, setShowFirstTimeTip] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [confettiPieces, setConfettiPieces] = useState<Array<{ id: number; left: number; delay: number; duration: number; rotate: number; color: string }>>([])
+  const launchConfetti = () => {
+    const colors = ['#F87171', '#FBBF24', '#34D399', '#60A5FA', '#A78BFA', '#F472B6']
+    const pieces = Array.from({ length: 120 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100, // vw
+      delay: Math.random() * 0.4,
+      duration: 1.2 + Math.random() * 1.2,
+      rotate: (Math.random() * 360) * (Math.random() > 0.5 ? 1 : -1),
+      color: colors[Math.floor(Math.random() * colors.length)]
+    }))
+    setConfettiPieces(pieces)
+    setShowConfetti(true)
+    setTimeout(() => setShowConfetti(false), 2600)
+  }
+
   const [remote, setRemote] = useState<RemoteConfigUI>({
     host: '',
     port: '22',
@@ -108,10 +121,12 @@ export default function ClaudeDeploy() {
           const data = JSON.parse(event.data)
           if (data.type === 'log') {
             addConsoleLog(data.level || 'info', data.message, data.timestamp)
-            // Fallback: if we see clear success markers, end installing state
+            // Fallback: if we see clear success markers, end installing state and show effects
             const msg: string = String(data.message || '')
-            if (/installation completed/i.test(msg) || /安装成功/.test(msg)) {
+            if (/installation completed/i.test(msg) || /安装成功/.test(msg) || /installed successfully/i.test(msg)) {
               setIsInstalling(false)
+              setShowFirstTimeTip(true)
+              launchConfetti()
             }
           } else if (data.type === 'installation-complete') {
             const { installation, status, error } = data
@@ -150,6 +165,14 @@ export default function ClaudeDeploy() {
             })
             setIsInstalling(false)
             addConsoleLog(status === 'success' ? 'success' : 'error', status === 'success' ? '✅ Installation completed' : `❌ Installation failed: ${error}`, new Date().toISOString())
+            if (status === 'success') {
+              // Show first-time tip in console and UI
+              addConsoleLog('warning', '💡 首次安装提示：如果运行 `ccr code` 卡在登录 Claude 界面，请先执行一次：', new Date().toISOString())
+              addConsoleLog('info', 'ANTHROPIC_AUTH_TOKEN=token claude', new Date().toISOString())
+              addConsoleLog('info', '退出 `claude` 后再运行 `ccr code`。', new Date().toISOString())
+              setShowFirstTimeTip(true)
+              launchConfetti()
+            }
           }
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error)
@@ -352,6 +375,29 @@ export default function ClaudeDeploy() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
+        {/* Confetti Overlay */}
+        <AnimatePresence>
+          {showConfetti && (
+            <motion.div
+              className="fixed inset-0 pointer-events-none z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {confettiPieces.map(piece => (
+                <motion.div
+                  key={piece.id}
+                  className="absolute w-2 h-3"
+                  style={{ left: `${piece.left}vw`, top: '-10px', backgroundColor: piece.color, borderRadius: 2 }}
+                  initial={{ y: -20, rotate: 0, opacity: 1 }}
+                  animate={{ y: '85vh', rotate: piece.rotate, opacity: 1 }}
+                  transition={{ delay: piece.delay, duration: piece.duration, ease: 'easeOut' }}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <motion.div 
           className="inline-flex items-center justify-center mb-4"
           animate={{ rotate: [0, 10, -10, 0] }}
@@ -397,6 +443,30 @@ export default function ClaudeDeploy() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
+        <Dialog.Root open={showFirstTimeTip} onOpenChange={setShowFirstTimeTip}>
+          <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
+          <Dialog.Content className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-slate-900 border border-white/10 rounded-xl p-6 shadow-2xl">
+            <Dialog.Title className="text-white text-lg font-semibold">首次安装提示</Dialog.Title>
+            <Dialog.Description className="text-gray-300 mt-2">
+              如果运行 <code className="text-white">ccr code</code> 卡在登录 Claude 界面，请先执行：
+              <pre className="mt-3 bg-black/30 px-3 py-2 rounded border border-white/10 text-white text-sm overflow-auto">ANTHROPIC_AUTH_TOKEN=token claude</pre>
+              <div className="mt-2">退出 <code className="text-white">claude</code> 后再运行 <code className="text-white">ccr code</code>。</div>
+              <div className="mt-3 text-xs text-gray-400">💡 First-time tip: If <code>ccr code</code> gets stuck on the Claude login screen, run: <code>ANTHROPIC_AUTH_TOKEN=token claude</code>; exit, then run <code>ccr code</code> again.</div>
+            </Dialog.Description>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => navigator.clipboard.writeText('ANTHROPIC_AUTH_TOKEN=token claude')}
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/10"
+              >
+                <Copy className="w-4 h-4 mr-1" /> 复制命令
+              </Button>
+              <Dialog.Close asChild>
+                <Button className="bg-purple-600 hover:bg-purple-700">知道了</Button>
+              </Dialog.Close>
+            </div>
+          </Dialog.Content>
+        </Dialog.Root>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4 bg-white/10 backdrop-blur-sm">
             <TabsTrigger value="local" className="data-[state=active]:bg-white/20">

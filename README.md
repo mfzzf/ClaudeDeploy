@@ -112,6 +112,42 @@ claudedeploy --generate-config --openai-key YOUR_API_KEY
 claudedeploy --generate-config --openai-key YOUR_API_KEY --openai-url https://your-api-domain.com
 ```
 
+### UCloud Config Generation
+```bash
+# Generate config.json with UCloud API key (defaults to https://api.modelverse.cn)
+claudedeploy --generate-config --ucloud-key YOUR_UCLOUD_KEY
+
+# Specify custom UCloud base URL
+claudedeploy --generate-config --ucloud-key YOUR_UCLOUD_KEY --ucloud-url https://api.modelverse.cn
+
+# Generate a combined config for OpenAI + UCloud
+claudedeploy --generate-config --openai-key OPENAI_KEY --ucloud-key UCLOUD_KEY
+```
+
+### Local Installation with Config Generation
+```bash
+# Local install + generate UCloud config (models fetched from https://api.modelverse.cn)
+claudedeploy --local --ucloud-key YOUR_UCLOUD_KEY
+
+# Local install + generate OpenAI config
+claudedeploy --local --openai-key YOUR_OPENAI_KEY
+
+# Local install + combined providers
+claudedeploy --local --openai-key OPENAI_KEY --ucloud-key UCLOUD_KEY
+```
+
+### First-time Setup Tip
+
+If this is your first time installing Claude Code and `ccr code` gets stuck on the Claude login screen, run the following once, then exit and try again:
+
+```bash
+# macOS / Linux
+ANTHROPIC_AUTH_TOKEN=token claude
+
+# Then exit the `claude` CLI and run:
+ccr code
+```
+
 ## 📋 Command Line Options
 
 ### Web UI

@@ -355,6 +355,11 @@ class ClaudeRemoteInstaller {
       console.log(
         chalk.blue('\nℹ️  Tip: You can configure default models via `ccr ui` or by editing ~/.claude-code-router/config.json')
       );
+      // First-time setup guidance if user is stuck at Claude login when running `ccr code`
+      console.log(chalk.yellow('\n💡 First-time tip: If `ccr code` gets stuck on the Claude login screen, run this once:'));
+      console.log(chalk.cyan('   ANTHROPIC_AUTH_TOKEN=token claude'));
+      console.log(chalk.gray('   Then exit the `claude` CLI and run `ccr code` again.'));
+      this.logger('info', '💡 First-time tip: If `ccr code` gets stuck on the Claude login screen, run: ANTHROPIC_AUTH_TOKEN=token claude; exit, then run `ccr code` again.');
       this.logger('success', '🎉 Remote installation completed successfully');
     } catch (error) {
       console.error(chalk.red.bold('\n❌ Remote installation failed:'), error.message);

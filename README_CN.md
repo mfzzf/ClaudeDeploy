@@ -112,6 +112,44 @@ claudedeploy --generate-config --openai-key YOUR_API_KEY
 claudedeploy --generate-config --openai-key YOUR_API_KEY --openai-url https://your-api-domain.com
 ```
 
+### UCloud 配置生成
+```bash
+# 使用 UCloud API Key 生成 config.json（默认 https://api.modelverse.cn）
+claudedeploy --generate-config --ucloud-key YOUR_UCLOUD_KEY
+
+# 指定自定义 UCloud 基础 URL
+claudedeploy --generate-config --ucloud-key YOUR_UCLOUD_KEY --ucloud-url https://api.modelverse.cn
+
+# 生成 OpenAI + UCloud 的组合配置
+claudedeploy --generate-config --openai-key OPENAI_KEY --ucloud-key UCLOUD_KEY
+```
+
+### 本地安装并生成配置
+```bash
+# 本地安装 + 生成 UCloud 配置（从 https://api.modelverse.cn 获取模型）
+claudedeploy --local --ucloud-key YOUR_UCLOUD_KEY
+
+# 本地安装 + 生成 OpenAI 配置
+claudedeploy --local --openai-key YOUR_OPENAI_KEY
+
+# 本地安装 + 组合提供商配置
+claudedeploy --local --openai-key OPENAI_KEY --ucloud-key UCLOUD_KEY
+```
+
+### 首次安装提示
+
+如果是第一次安装 Claude Code，遇到 `ccr code` 卡在登录 Claude 界面，请先执行一次：
+
+```bash
+ANTHROPIC_AUTH_TOKEN=token claude
+```
+
+退出 `claude` 后，再运行：
+
+```bash
+ccr code
+```
+
 ## 📋 命令行选项
 
 ### Web UI
