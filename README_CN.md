@@ -14,6 +14,7 @@
 
 ## ✨ 功能特点
 
+- 🎨 **Web UI实时日志** - 美观的界面，实时命令输出流
 - 🖥️ **本地安装** - 在Windows/macOS/Linux上直接安装Claude Code
 - 🔐 **远程安装** - 通过SSH零配置认证连接到任何服务器
 - 📦 **自动依赖** - 如果缺少Node.js/npm则自动安装
@@ -21,6 +22,8 @@
 - ⚙️ **配置迁移** - 可选的远程服务器配置文件复制
 - ✅ **安装验证** - 验证两个工具是否正确安装
 - 🎯 **通用支持** - 支持任何有Node.js的平台
+- 🌐 **自动打开浏览器** - UI自动在默认浏览器中打开
+- 📊 **WebSocket实时更新** - 实时查看每个命令及其输出
 
 ## 🚀 快速开始
 
@@ -38,16 +41,40 @@ npm link
 
 ### 使用示例
 
+#### 🎨 Web UI（推荐）
+```bash
+# 启动交互式Web界面
+claudedeploy ui
+
+# 使用自定义端口
+claudedeploy ui --port 3000
+
+# 在浏览器中访问UI
+# 默认: http://localhost:3456
+```
+
+**Web UI 功能：**
+- 📊 **可视化界面** - 现代化响应式设计，直观导航
+- 🔧 **简单配置** - 表单输入带验证和帮助提示
+- 📜 **安装历史** - 跟踪所有安装的状态、持续时间和日志
+- 💻 **实时控制台** - 通过WebSocket实时流式传输命令输出
+- 🌐 **自动打开浏览器** - UI自动在默认浏览器中打开
+- 🔄 **WebSocket连接** - 双向通信，即时更新
+- 🎨 **美观设计** - 大字体、渐变背景、流畅动画
+- 📡 **实时命令日志** - 查看每个npm安装、版本检查和验证
+- ⏱️ **时间戳条目** - 每个日志显示确切执行时间
+- 🔴 **颜色编码输出** - 绿色表示成功，红色表示错误，黄色表示警告
+
 #### 🖥️ 本地安装（您的计算机）
 ```bash
 # 在本地计算机上安装Claude Code
 claudedeploy --local
 
-# 使用UCloud配置生成安装
-claudedeploy --local --ucloud-key YOUR_API_KEY
+# 使用OpenAI配置生成安装
+claudedeploy --local --openai-key YOUR_API_KEY
 
-# 使用自定义UCloud URL安装
-claudedeploy --local --ucloud-key YOUR_API_KEY --ucloud-url https://your-ucloud-domain.com
+# 使用自定义OpenAI兼容URL安装
+claudedeploy --local --openai-key YOUR_API_KEY --openai-url https://your-api-domain.com
 
 # 使用中国npm源安装
 claudedeploy --local --registry https://registry.npmmirror.com
@@ -76,16 +103,23 @@ claudedeploy -h server.com -u ubuntu --skip-config
 claudedeploy -h server.com -u ubuntu --registry https://registry.npmmirror.com
 ```
 
-#### ⚙️ UCloud配置生成
+#### ⚙️ OpenAI配置生成
 ```bash
-# 使用UCloud API密钥生成config.json
-claudedeploy --generate-config --ucloud-key YOUR_API_KEY
+# 使用OpenAI API密钥生成config.json
+claudedeploy --generate-config --openai-key YOUR_API_KEY
 
-# 使用自定义UCloud URL生成
-claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://your-ucloud-domain.com
+# 使用自定义OpenAI兼容URL生成
+claudedeploy --generate-config --openai-key YOUR_API_KEY --openai-url https://your-api-domain.com
 ```
 
 ## 📋 命令行选项
+
+### Web UI
+| 选项 | 描述 | 是否必需 |
+|------|------|----------|
+| `ui` | 启动基于Web的UI服务器 | ✅ |
+| `--port <port>` | UI服务器运行端口（默认：3456） | ❌ |
+| `--no-open` | 不自动打开浏览器 | ❌ |
 
 ### 本地安装
 | 选项 | 描述 | 是否必需 |
@@ -93,8 +127,8 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 | `--verbose` | 启用详细输出 | ❌ |
 | `--dry-run` | 仅打印命令不执行 | ❌ |
 | `--local` | 在此本地计算机上安装 | ✅ |
-| `--ucloud-key <key>` | UCloud API密钥用于配置生成 | ❌ |
-| `--ucloud-url <url>` | UCloud基础URL（默认：https://deepseek.modelverse.cn） | ❌ |
+| `--openai-key <key>` | OpenAI API密钥用于配置生成 | ❌ |
+| `--openai-url <url>` | OpenAI基础URL（默认：https://api.openai.com） | ❌ |
 | `--registry <registry>` | npm registry URL（例如：https://registry.npmmirror.com） | ❌ |
 
 ### 远程安装
@@ -110,12 +144,12 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 | `--registry <registry>` | npm registry URL（例如：https://registry.npmmirror.com） | ❌ |
 | `--user-install` | 不使用sudo安装（用户级全局） | ❌ |
 
-### UCloud配置生成
+### OpenAI配置生成
 | 选项 | 描述 | 是否必需 |
 |------|------|----------|
-| `--generate-config` | 使用API密钥生成UCloud config.json | ✅ |
-| `--ucloud-key <key>` | UCloud API密钥用于配置生成 | ✅ |
-| `--ucloud-url <url>` | UCloud基础URL（默认：https://deepseek.modelverse.cn） | ❌ |
+| `--generate-config` | 使用API密钥生成OpenAI config.json | ✅ |
+| `--openai-key <key>` | OpenAI API密钥用于配置生成 | ✅ |
+| `--openai-url <url>` | OpenAI基础URL（默认：https://api.openai.com） | ❌ |
 
 ## 🔧 工作原理
 ### 安全提示
@@ -139,11 +173,11 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 5. **复制** 您的本地config.json到远程服务器（可选）
 6. **验证** 两个工具是否正常工作
 
-### UCloud配置生成：
+### OpenAI配置生成：
 1. **获取** 从`/v1/models`端点获取可用模型
-2. **过滤** 聊天模型（排除图像/文本到图像模型）
+2. **过滤** 聊天模型（GPT模型）
 3. **生成** 使用您的API密钥优化的config.json
-4. **自动包含** 所有可用的UCloud模型
+4. **自动包含** 所有可用的OpenAI模型
 
 ## 🖥️ 支持平台
 
@@ -172,6 +206,29 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 - 远程服务器的sudo权限
 
 ## 📊 示例输出
+
+### Web UI 控制台：
+```bash
+🌐 打开浏览器到 http://localhost:3456
+✅ ClaudeDeploy UI 运行在: http://localhost:3456
+📱 打开浏览器以配置和管理安装
+
+# 浏览器中的实时日志：
+[10:23:45] 已连接到ClaudeDeploy服务器
+[10:23:46] WebSocket连接已建立，实时日志已启用
+[10:23:50] 开始本地安装...
+[10:23:50] 检查Node.js安装...
+[10:23:51] v20.11.0
+[10:23:51] ✅ Node.js已安装
+[10:23:51] 检查npm安装...
+[10:23:52] 10.2.4
+[10:23:52] ✅ npm可用
+[10:23:52] 📦 安装 @anthropic-ai/claude-code...
+[10:23:58] ✅ Claude Code安装成功
+[10:23:58] 📦 安装 @musistudio/claude-code-router...
+[10:24:03] ✅ Claude Code Router安装成功
+[10:24:03] 🎉 本地安装成功完成！
+```
 
 ### 本地安装：
 ```bash

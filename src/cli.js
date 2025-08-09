@@ -7,6 +7,7 @@ const os = require('os');
 const readline = require('readline');
 const { ClaudeRemoteInstaller } = require('./installer');
 const { LocalInstaller } = require('./local');
+const { UIServer } = require('./ui-server-react');
 const packageJson = require('../package.json');
 
 function printPathHints(isRemote = false) {
@@ -17,17 +18,82 @@ function printPathHints(isRemote = false) {
   if (isRemote) console.log(chalk.gray('  - On remote, check the shell rc files for the target user.'));
 }
 
+async function promptPassword(prompt) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const muteOutput = (stream, mute) => {
+    const write = stream.write;
+    stream.write = function (string, encoding, fd) {
+      if (mute) return true;
+      return write.apply(stream, [string, encoding, fd]);
+    };
+    return () => (stream.write = write);
+  };
+  const unmute = muteOutput(process.stdout, true);
+  const password = await new Promise((resolve) => {
+    rl.question(prompt, (answer) => {
+      unmute();
+      rl.close();
+      console.log();
+      resolve(answer);
+    });
+  });
+  return password;
+}
+
 async function runCli() {
   program
     .name('claudedeploy')
     .description('Universal Claude Code installer - works on local computer and remote servers')
-    .version(packageJson.version)
+    .version(packageJson.version);
+
+  // UI Command
+  program
+    .command('ui')
+    .description('Start the web-based UI for ClaudeDeploy')
+    .option('--port <port>', 'Port to run the UI server on', '3456')
+    .option('--no-open', 'Do not automatically open browser')
+    .action(async (options) => {
+      const port = parseInt(options.port);
+      const server = new UIServer(port);
+      
+      console.log(chalk.blue.bold('🚀 Starting ClaudeDeploy UI...\n'));
+      
+      try {
+        await server.start();
+        
+        // Auto-open browser unless disabled
+        if (options.open !== false) {
+          const open = require('open');
+          const url = `http://localhost:${port}`;
+          console.log(chalk.green('🌐 Opening browser to ' + url));
+          await open(url);
+        }
+        
+        // Handle graceful shutdown
+        process.on('SIGINT', () => {
+          console.log(chalk.yellow('\n\nShutting down UI server...'));
+          server.stop();
+          process.exit(0);
+        });
+        
+        process.on('SIGTERM', () => {
+          server.stop();
+          process.exit(0);
+        });
+      } catch (error) {
+        console.error(chalk.red('Failed to start UI server:'), error.message);
+        process.exit(1);
+      }
+    });
+
+  // Main command with options
+  program
     .option('--verbose', 'Enable verbose output')
     .option('--dry-run', 'Print commands without executing them')
     .option('--local', 'Install Claude Code on this local computer')
-    .option('--generate-config', 'Generate UCloud config.json with API key')
-    .option('--ucloud-key <key>', 'UCloud API key for config generation')
-    .option('--ucloud-url <url>', 'UCloud base URL (default: https://deepseek.modelverse.cn)', 'https://deepseek.modelverse.cn')
+    .option('--generate-config', 'Generate OpenAI config.json with API key')
+    .option('--openai-key <key>', 'OpenAI API key for config generation')
+    .option('--openai-url <url>', 'OpenAI base URL (default: https://api.openai.com)', 'https://api.openai.com')
     .option('-h, --host <host>', 'Remote server hostname or IP (for remote installation)')
     .option('-u, --username <username>', 'SSH username (for remote installation)')
     .option('-p, --password <password>', 'SSH password (will prompt if not provided)')
@@ -39,14 +105,14 @@ async function runCli() {
     .option('--user-install', 'Install without sudo (user-level global)')
     .action(async (options) => {
       if (options.generateConfig) {
-        if (!options.ucloudKey) {
-          console.error(chalk.red('❌ --ucloud-key is required for config generation'));
+        if (!options.openaiKey) {
+          console.error(chalk.red('❌ --openai-key is required for config generation'));
           process.exit(1);
         }
         const local = new LocalInstaller();
         local.verbose = !!options.verbose;
         local.dryRun = !!options.dryRun;
-        await local.generateUCloudConfig(options.ucloudKey, options.ucloudUrl);
+        await local.generateOpenAIConfig(options.openaiKey, options.openaiUrl);
         return;
       }
 
@@ -54,9 +120,9 @@ async function runCli() {
         const local = new LocalInstaller();
         local.verbose = !!options.verbose;
         local.dryRun = !!options.dryRun;
-        if (options.ucloudKey) {
-          console.log(chalk.blue('🔧 Generating UCloud config for local installation...'));
-          await local.generateUCloudConfig(options.ucloudKey, options.ucloudUrl);
+        if (options.openaiKey) {
+          console.log(chalk.blue('🔧 Generating OpenAI config for local installation...'));
+          await local.generateOpenAIConfig(options.openaiKey, options.openaiUrl);
         }
         await local.installLocal(options.registry);
         printPathHints(false);
@@ -85,24 +151,7 @@ async function runCli() {
             if (options.passphrase) {
               auth.passphrase = options.passphrase;
             } else {
-              const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-              const muteOutput = (stream, mute) => {
-                const write = stream.write;
-                stream.write = function (string, encoding, fd) {
-                  if (mute) return true;
-                  return write.apply(stream, [string, encoding, fd]);
-                };
-                return () => (stream.write = write);
-              };
-              const unmute = muteOutput(process.stdout, true);
-              const passphrase = await new Promise((resolve) => {
-                rl.question('SSH Key Passphrase (optional): ', (answer) => {
-                  unmute();
-                  rl.close();
-                  console.log();
-                  resolve(answer);
-                });
-              });
+              const passphrase = await promptPassword('SSH Key Passphrase (optional): ');
               if (passphrase) auth.passphrase = passphrase;
             }
           } catch (error) {
@@ -127,25 +176,7 @@ async function runCli() {
             }
           }
           if (!foundKey) {
-            const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-            const muteOutput = (stream, mute) => {
-              const write = stream.write;
-              stream.write = function (string, encoding, fd) {
-                if (mute) return true;
-                return write.apply(stream, [string, encoding, fd]);
-              };
-              return () => (stream.write = write);
-            };
-            const unmute = muteOutput(process.stdout, true);
-            const password = await new Promise((resolve) => {
-              rl.question('SSH Password: ', (answer) => {
-                unmute();
-                rl.close();
-                console.log();
-                resolve(answer);
-              });
-            });
-            auth.password = password;
+            auth.password = await promptPassword('SSH Password: ');
           }
         }
 
@@ -156,8 +187,8 @@ async function runCli() {
           parseInt(options.port),
           options.skipConfig,
           options.registry,
-          options.ucloudKey,
-          options.ucloudUrl,
+          options.openaiKey,
+          options.openaiUrl,
           !!options.userInstall
         );
         printPathHints(true);
@@ -165,9 +196,11 @@ async function runCli() {
       }
 
       console.error(chalk.red('❌ Please specify one of:'));
-      console.log(chalk.yellow('  claudedeploy --generate-config --ucloud-key YOUR_KEY    # Generate UCloud config'));
+      console.log(chalk.yellow('  claudedeploy ui                                           # Start web UI (recommended)'));
+      console.log(chalk.yellow('  claudedeploy --generate-config --openai-key YOUR_KEY    # Generate OpenAI config'));
       console.log(chalk.yellow('  claudedeploy --local                                      # Install on this computer'));
       console.log(chalk.yellow('  claudedeploy -h server.com -u username                    # Install on remote server'));
+      console.log(chalk.yellow('\nFor more options, use: claudedeploy --help'));
       process.exit(1);
     });
 

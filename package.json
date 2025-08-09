@@ -1,6 +1,6 @@
 {
   "name": "claudedeploy",
-  "version": "1.1.19",
+  "version": "2.0.1",
   "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication",
   "repository": {
     "type": "git",
@@ -36,14 +36,17 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
+    "express": "^4.21.2",
+    "open": "^8.4.2",
     "ora": "^5.4.1",
-    "ssh2": "^1.15.0"
+    "ssh2": "^1.15.0",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.3.3",
-    "pkg": "^5.8.1"
+    "pkg": "^5.8.1",
+    "prettier": "^3.3.3"
   },
   "pkg": {
     "scripts": [
@@ -52,7 +55,8 @@
     "assets": [
       "package.json",
       "src/**/*",
-      "bin/**/*"
+      "bin/**/*",
+      "ui-react/dist/**/*"
     ],
     "targets": [
       "node18-win-x64",
@@ -66,6 +70,7 @@
   "files": [
     "bin/",
     "src/",
+    "ui-react/dist/",
     "README.md",
     "README_CN.md",
     "LICENSE"

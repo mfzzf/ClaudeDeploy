@@ -14,6 +14,7 @@
 
 ## ✨ Features
 
+- 🎨 **Web UI with Real-time Logging** - Beautiful interface with live command output streaming
 - 🖥️ **Local Installation** - Install Claude Code directly on Windows/macOS/Linux
 - 🔐 **Remote Installation** - SSH to any server with zero-config authentication
 - 📦 **Auto Dependencies** - Node.js/npm installation if missing
@@ -21,6 +22,8 @@
 - ⚙️ **Config Migration** - Optional config copying for remote servers
 - ✅ **Installation Verification** - Verify both tools are properly installed
 - 🎯 **Universal Support** - Works on any platform with Node.js
+- 🌐 **Auto-Browser Launch** - UI automatically opens in your default browser
+- 📊 **WebSocket Real-time Updates** - See every command and its output as it happens
 
 ## 🚀 Quick Start
 
@@ -38,16 +41,40 @@ npm link
 
 ### Usage Examples
 
+#### 🎨 Web UI (Recommended)
+```bash
+# Start the interactive web interface
+claudedeploy ui
+
+# Use custom port
+claudedeploy ui --port 3000
+
+# Access the UI in your browser
+# Default: http://localhost:3456
+```
+
+**Web UI Features:**
+- 📊 **Visual Interface** - Modern, responsive design with intuitive navigation
+- 🔧 **Easy Configuration** - Form-based inputs with validation and helpful hints
+- 📜 **Installation History** - Track all installations with status, duration, and logs
+- 💻 **Real-time Console** - Live streaming of command output via WebSocket
+- 🌐 **Auto-Browser Launch** - Automatically opens UI in your default browser
+- 🔄 **WebSocket Connection** - Bi-directional communication for instant updates
+- 🎨 **Beautiful Design** - Large fonts, gradient backgrounds, smooth animations
+- 📡 **Live Command Logs** - See every npm install, version check, and verification
+- ⏱️ **Timestamped Entries** - Each log shows exact time of execution
+- 🔴 **Color-coded Output** - Green for success, red for errors, yellow for warnings
+
 #### 🖥️ Local Installation (Your Computer)
 ```bash
 # Install Claude Code on your local computer
 claudedeploy --local
 
-# Install with UCloud config generation
-claudedeploy --local --ucloud-key YOUR_API_KEY
+# Install with OpenAI config generation
+claudedeploy --local --openai-key YOUR_API_KEY
 
-# Install with custom UCloud URL
-claudedeploy --local --ucloud-key YOUR_API_KEY --ucloud-url https://your-ucloud-domain.com
+# Install with custom OpenAI-compatible URL
+claudedeploy --local --openai-key YOUR_API_KEY --openai-url https://your-api-domain.com
 
 # Install with Chinese npm registry
 claudedeploy --local --registry https://registry.npmmirror.com
@@ -76,16 +103,23 @@ claudedeploy -h server.com -u ubuntu --skip-config
 claudedeploy -h server.com -u ubuntu --registry https://registry.npmmirror.com
 ```
 
-#### ⚙️ UCloud Config Generation
+#### ⚙️ OpenAI Config Generation
 ```bash
-# Generate config.json with UCloud API key
-claudedeploy --generate-config --ucloud-key YOUR_API_KEY
+# Generate config.json with OpenAI API key
+claudedeploy --generate-config --openai-key YOUR_API_KEY
 
-# Generate with custom UCloud URL
-claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://your-ucloud-domain.com
+# Generate with custom OpenAI-compatible URL
+claudedeploy --generate-config --openai-key YOUR_API_KEY --openai-url https://your-api-domain.com
 ```
 
 ## 📋 Command Line Options
+
+### Web UI
+| Option | Description | Required |
+|--------|-------------|----------|
+| `ui` | Start the web-based UI server | ✅ |
+| `--port <port>` | Port to run UI server on (default: 3456) | ❌ |
+| `--no-open` | Do not automatically open browser | ❌ |
 
 ### Local Installation
 | Option | Description | Required |
@@ -93,8 +127,8 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 | `--verbose` | Enable verbose output | ❌ |
 | `--dry-run` | Print commands without executing them | ❌ |
 | `--local` | Install on this local computer | ✅ |
-| `--ucloud-key <key>` | UCloud API key for config generation | ❌ |
-| `--ucloud-url <url>` | UCloud base URL (default: https://deepseek.modelverse.cn) | ❌ |
+| `--openai-key <key>` | OpenAI API key for config generation | ❌ |
+| `--openai-url <url>` | OpenAI base URL (default: https://api.openai.com) | ❌ |
 | `--registry <registry>` | npm registry URL (e.g., https://registry.npmmirror.com) | ❌ |
 
 ### Remote Installation
@@ -110,12 +144,12 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 | `--registry <registry>` | npm registry URL (e.g., https://registry.npmmirror.com) | ❌ |
 | `--user-install` | Install without sudo (user-level global) | ❌ |
 
-### UCloud Config Generation
+### OpenAI Config Generation
 | Option | Description | Required |
 |--------|-------------|----------|
-| `--generate-config` | Generate UCloud config.json with API key | ✅ |
-| `--ucloud-key <key>` | UCloud API key for config generation | ✅ |
-| `--ucloud-url <url>` | UCloud base URL (default: https://deepseek.modelverse.cn) | ❌ |
+| `--generate-config` | Generate OpenAI config.json with API key | ✅ |
+| `--openai-key <key>` | OpenAI API key for config generation | ✅ |
+| `--openai-url <url>` | OpenAI base URL (default: https://api.openai.com) | ❌ |
 
 ## 🔧 What It Does
 ### Security Notes
@@ -139,11 +173,11 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 5. **Copies** your local config.json to remote server (optional)
 6. **Verifies** both tools are working correctly
 
-### UCloud Config Generation:
+### OpenAI Config Generation:
 1. **Fetches** available models from `/v1/models` endpoint
-2. **Filters** chat models (excludes image/text-to-image models)
+2. **Filters** chat models (GPT models)
 3. **Generates** optimized config.json with your API key
-4. **Includes** all available UCloud models automatically
+4. **Includes** all available OpenAI models automatically
 
 ## 🖥️ Supported Platforms
 
@@ -172,6 +206,29 @@ claudedeploy --generate-config --ucloud-key YOUR_API_KEY --ucloud-url https://yo
 - sudo privileges on remote server
 
 ## 📊 Example Output
+
+### Web UI Console:
+```bash
+🌐 Opening browser to http://localhost:3456
+✅ ClaudeDeploy UI is running at: http://localhost:3456
+📱 Open your browser to configure and manage installations
+
+# Real-time logs in browser:
+[10:23:45] Connected to ClaudeDeploy server
+[10:23:46] WebSocket connection established for real-time logging
+[10:23:50] Starting local installation...
+[10:23:50] Checking Node.js installation...
+[10:23:51] v20.11.0
+[10:23:51] ✅ Node.js is already installed
+[10:23:51] Checking npm installation...
+[10:23:52] 10.2.4
+[10:23:52] ✅ npm is available
+[10:23:52] 📦 Installing @anthropic-ai/claude-code...
+[10:23:58] ✅ Claude Code installed successfully
+[10:23:58] 📦 Installing @musistudio/claude-code-router...
+[10:24:03] ✅ Claude Code Router installed successfully
+[10:24:03] 🎉 Local installation completed successfully!
+```
 
 ### Local Installation:
 ```bash

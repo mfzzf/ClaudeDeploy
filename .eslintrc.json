@@ -14,5 +14,14 @@
   "rules": {
     "no-console": "off",
     "no-unused-vars": ["warn", { "args": "none", "ignoreRestSiblings": true }]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["ui/**/*.js"],
+      "env": {
+        "browser": true,
+        "node": false
+      }
+    }
+  ]
 }

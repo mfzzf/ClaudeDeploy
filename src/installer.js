@@ -7,14 +7,16 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { validateRegistryUrl, filterChatModels } = require('./utils');
-const { fetchUCloudModels } = require('./services/ucloud');
+const { fetchOpenAIModels } = require('./services/openai');
 
 class ClaudeRemoteInstaller {
-  constructor() {
+  constructor(options = {}) {
     this.conn = new Client();
     this.spinner = null;
     this.verbose = false;
     this.dryRun = false;
+    this.logger = typeof options.logger === 'function' ? options.logger : () => {};
+    this.exitOnFailure = options.exitOnFailure !== undefined ? !!options.exitOnFailure : true;
   }
 
   async connect(host, username, auth, port = 22) {
@@ -22,10 +24,12 @@ class ClaudeRemoteInstaller {
       this.spinner = ora('Connecting to remote server...').start();
       this.conn.on('ready', () => {
         this.spinner.succeed('Connected to remote server');
+        this.logger('success', '✅ Connected to remote server');
         resolve();
       });
       this.conn.on('error', (err) => {
         this.spinner.fail('Connection failed');
+        this.logger('error', `❌ Connection failed: ${err.message}`);
         reject(err);
       });
       const connectionConfig = {
@@ -54,6 +58,7 @@ class ClaudeRemoteInstaller {
   async executeCommand(command, description) {
     if (this.dryRun) {
       console.log(chalk.cyan(`[DRY-RUN][remote] ${command}`));
+      this.logger('info', `[DRY-RUN][remote] ${command}`);
       return '';
     }
     return new Promise((resolve, reject) => {
@@ -61,6 +66,7 @@ class ClaudeRemoteInstaller {
       this.conn.exec(command, (err, stream) => {
         if (err) {
           this.spinner.fail(`Failed: ${description}`);
+          this.logger('error', `❌ Failed: ${description}: ${err.message}`);
           reject(err);
           return;
         }
@@ -69,19 +75,32 @@ class ClaudeRemoteInstaller {
         stream.on('close', (code) => {
           if (code === 0) {
             this.spinner.succeed(description);
+            this.logger('success', `✅ ${description}`);
             resolve(stdout);
           } else {
             this.spinner.fail(`Failed: ${description} (exit code: ${code})`);
-            reject(new Error(stderr || `Command failed with exit code ${code}`));
+            const msg = stderr || `Command failed with exit code ${code}`;
+            this.logger('error', `❌ ${description}: ${msg}`);
+            reject(new Error(msg));
           }
         });
         stream.on('data', (data) => {
           stdout += data.toString();
           if (this.verbose) process.stdout.write(chalk.gray(data.toString()));
+          String(data.toString())
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .forEach((line) => this.logger('info', line));
         });
         stream.stderr.on('data', (data) => {
           stderr += data.toString();
           if (this.verbose) process.stderr.write(chalk.red(data.toString()));
+          String(data.toString())
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .forEach((line) => this.logger('warning', line));
         });
       });
     });
@@ -97,15 +116,22 @@ class ClaudeRemoteInstaller {
   }
 
   async installNode() {
-    const pm = (await this.executeCommand(
-      'sh -lc "if command -v apt-get >/dev/null 2>&1; then echo apt; ' +
-        'elif command -v dnf >/dev/null 2>&1; then echo dnf; ' +
-        'elif command -v yum >/dev/null 2>&1; then echo yum; ' +
-        'elif command -v apk >/dev/null 2>&1; then echo apk; ' +
-        'elif command -v pacman >/dev/null 2>&1; then echo pacman; ' +
-        'else echo unknown; fi"',
-      'Detecting package manager'
-    )).trim();
+    let pm;
+    try {
+      pm = (await this.executeCommand(
+        'sh -lc "if command -v apt-get >/dev/null 2>&1; then echo apt; ' +
+          'elif command -v dnf >/dev/null 2>&1; then echo dnf; ' +
+          'elif command -v yum >/dev/null 2>&1; then echo yum; ' +
+          'elif command -v apk >/dev/null 2>&1; then echo apk; ' +
+          'elif command -v pacman >/dev/null 2>&1; then echo pacman; ' +
+          'else echo unknown; fi"',
+        'Detecting package manager'
+      )).trim();
+    } catch (error) {
+      console.log(chalk.yellow('⚠️  Could not detect package manager, attempting default installation'));
+      this.logger('warning', '⚠️  Could not detect package manager, attempting default installation');
+      pm = 'unknown';
+    }
 
     if (pm === 'apt') {
       await this.executeCommand('curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -', 'Adding Node.js repository (deb)');
@@ -127,7 +153,9 @@ class ClaudeRemoteInstaller {
           await this.executeCommand('curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -', 'Adding Node.js repository (rpm)');
           await this.executeCommand('sudo yum install -y nodejs', 'Installing Node.js (rpm)');
         } catch (e) {
-          throw new Error('Failed to install Node.js automatically. Please install Node.js manually.');
+          const msg = 'Failed to install Node.js automatically. Please install Node.js manually.';
+          this.logger('error', `❌ ${msg}`);
+          throw new Error(msg);
         }
       }
     }
@@ -138,6 +166,7 @@ class ClaudeRemoteInstaller {
       await this.executeCommand('npm --version', 'Checking npm installation');
     } catch (error) {
       console.log(chalk.yellow('⚠️  npm not detected after Node installation. Please ensure npm is installed.'));
+      this.logger('warning', '⚠️  npm not detected after Node installation. Please ensure npm is installed.');
     }
   }
 
@@ -166,12 +195,14 @@ class ClaudeRemoteInstaller {
   async copyConfigFile(username, skipConfig = false) {
     if (skipConfig) {
       console.log(chalk.blue('ℹ️  Skipping config file copy (local installation mode)'));
+      this.logger('info', 'ℹ️  Skipping config file copy (local installation mode)');
       return;
     }
     const localConfigPath = path.join(os.homedir(), '.claude-code-router', 'config.json');
     if (!fs.existsSync(localConfigPath)) {
       console.log(chalk.yellow('⚠️  Local config.json not found, skipping config copy'));
       console.log(chalk.blue('💡 You can configure Claude Code manually after installation'));
+      this.logger('warning', '⚠️  Local config.json not found, skipping config copy');
       return;
     }
     const configContent = fs.readFileSync(localConfigPath, 'utf8');
@@ -181,6 +212,7 @@ class ClaudeRemoteInstaller {
       this.conn.sftp((err, sftp) => {
         if (err) {
           this.spinner.fail('Failed to establish SFTP connection');
+          this.logger('error', '❌ Failed to establish SFTP connection');
           reject(err);
           return;
         }
@@ -189,16 +221,19 @@ class ClaudeRemoteInstaller {
         this.conn.exec(`mkdir -p ${remoteDir}`, (err) => {
           if (err) {
             this.spinner.fail('Failed to create remote directory');
+            this.logger('error', '❌ Failed to create remote directory');
             reject(err);
             return;
           }
           const writeStream = sftp.createWriteStream(remotePath, { mode: 0o600 });
           writeStream.on('close', () => {
             this.spinner.succeed('Config file copied successfully');
+            this.logger('success', '✅ Config file copied successfully');
             resolve();
           });
           writeStream.on('error', (err) => {
             this.spinner.fail('Failed to copy config file');
+            this.logger('error', `❌ Failed to copy config file: ${err.message}`);
             reject(err);
           });
           writeStream.write(configContent);
@@ -208,22 +243,21 @@ class ClaudeRemoteInstaller {
     });
   }
 
-  async generateRemoteUCloudConfig(username, apiKey, baseUrl = 'https://deepseek.modelverse.cn') {
+  async generateRemoteOpenAIConfig(username, apiKey, baseUrl = 'https://api.openai.com') {
     const remoteHome = await this.getRemoteHome(username);
     const remoteDir = `${remoteHome}/.claude-code-router`;
     const configPath = `${remoteDir}/config.json`;
-    this.spinner = ora('Generating UCloud config on remote server...').start();
+    this.spinner = ora('Generating OpenAI config on remote server...').start();
     try {
-      const models = await fetchUCloudModels(baseUrl, apiKey);
+      const models = await fetchOpenAIModels(baseUrl, apiKey);
       const chatModels = filterChatModels(models);
       const finalModels = chatModels.length > 0 ? chatModels : [
-        'Qwen/Qwen3-Coder',
-        'moonshotai/Kimi-K2-Instruct',
-        'deepseek-ai/DeepSeek-R1-0528',
-        'deepseek-ai/DeepSeek-V3-0324',
-        'zai-org/glm-4.5',
+        'gpt-4-turbo-preview',
+        'gpt-4',
+        'gpt-3.5-turbo',
+        'gpt-3.5-turbo-16k',
       ];
-      const ucloudConfig = {
+      const openaiConfig = {
         LOG: false,
         CLAUDE_PATH: '',
         HOST: '127.0.0.1',
@@ -234,19 +268,19 @@ class ClaudeRemoteInstaller {
         Transformers: [],
         Providers: [
           {
-            name: 'ucloud',
+            name: 'openai',
             api_base_url: `${baseUrl}/v1/chat/completions`,
             api_key: apiKey,
             models: finalModels,
           },
         ],
         Router: {
-          default: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          background: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          think: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          longContext: 'ucloud,moonshotai/Kimi-K2-Instruct',
+          default: 'openai,gpt-4-turbo-preview',
+          background: 'openai,gpt-3.5-turbo',
+          think: 'openai,gpt-4',
+          longContext: 'openai,gpt-4-turbo-preview',
           longContextThreshold: 60000,
-          webSearch: 'ucloud,moonshotai/Kimi-K2-Instruct',
+          webSearch: 'openai,gpt-3.5-turbo',
         },
       };
       await new Promise((resolve, reject) => {
@@ -257,15 +291,17 @@ class ClaudeRemoteInstaller {
             const stream = sftp.createWriteStream(configPath, { mode: 0o600 });
             stream.on('error', reject);
             stream.on('close', resolve);
-            stream.end(Buffer.from(JSON.stringify(ucloudConfig, null, 2)));
+            stream.end(Buffer.from(JSON.stringify(openaiConfig, null, 2)));
           });
         });
       });
-      this.spinner.succeed('UCloud config generated on remote server');
+      this.spinner.succeed('OpenAI config generated on remote server');
       console.log(chalk.green(`✅ Config file created at: ${configPath}`));
       console.log(chalk.yellow(`📋 Models available: ${finalModels.join(', ')}`));
+      this.logger('success', `✅ OpenAI config generated on remote server at: ${configPath}`);
     } catch (e) {
-      this.spinner.fail('Failed to generate remote UCloud config');
+      this.spinner.fail('Failed to generate remote OpenAI config');
+      this.logger('error', `❌ Failed to generate remote OpenAI config: ${e.message}`);
       throw e;
     }
   }
@@ -286,12 +322,13 @@ class ClaudeRemoteInstaller {
     port,
     skipConfig = false,
     registry = null,
-    ucloudKey = null,
-    ucloudUrl = 'https://deepseek.modelverse.cn',
+    openaiKey = null,
+    openaiUrl = 'https://api.openai.com',
     userInstall = false
   ) {
     try {
       console.log(chalk.blue.bold('🚀 Installing Claude Code on remote server...\n'));
+      this.logger('info', '🚀 Installing Claude Code on remote server...');
 
       await this.connect(host, username, auth, port);
 
@@ -303,9 +340,10 @@ class ClaudeRemoteInstaller {
       await this.installNpm();
       await this.installClaudeCode(registry, !userInstall);
 
-      if (ucloudKey) {
-        console.log(chalk.blue('🔧 Using provided UCloud API key for config generation...'));
-        await this.generateRemoteUCloudConfig(username, ucloudKey, ucloudUrl);
+      if (openaiKey) {
+        console.log(chalk.blue('🔧 Using provided OpenAI API key for config generation...'));
+        this.logger('info', '🔧 Using provided OpenAI API key for config generation...');
+        await this.generateRemoteOpenAIConfig(username, openaiKey, openaiUrl);
       } else if (!skipConfig) {
         await this.copyConfigFile(username, skipConfig);
       }
@@ -317,9 +355,15 @@ class ClaudeRemoteInstaller {
       console.log(
         chalk.blue('\nℹ️  Tip: You can configure default models via `ccr ui` or by editing ~/.claude-code-router/config.json')
       );
+      this.logger('success', '🎉 Remote installation completed successfully');
     } catch (error) {
       console.error(chalk.red.bold('\n❌ Remote installation failed:'), error.message);
-      process.exit(1);
+      this.logger('error', `❌ Remote installation failed: ${error.message}`);
+      if (this.exitOnFailure) {
+        process.exit(1);
+      } else {
+        throw error;
+      }
     } finally {
       await this.disconnect();
     }

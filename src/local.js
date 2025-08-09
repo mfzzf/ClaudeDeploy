@@ -6,38 +6,71 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { validateRegistryUrl, filterChatModels } = require('./utils');
-const { fetchUCloudModels } = require('./services/ucloud');
+const { fetchOpenAIModels } = require('./services/openai');
 
 class LocalInstaller {
-  constructor() {
+  constructor(options = {}) {
     this.verbose = false;
     this.dryRun = false;
+    this.logger = typeof options.logger === 'function' ? options.logger : () => {};
+    this.exitOnFailure = options.exitOnFailure !== undefined ? !!options.exitOnFailure : true;
   }
 
   async executeCommandLocally(command) {
     if (this.dryRun) {
-      console.log(chalk.cyan(`[DRY-RUN][local] ${command}`));
+      const msg = `[DRY-RUN][local] ${command}`;
+      console.log(chalk.cyan(msg));
+      this.logger('info', msg);
       return '';
     }
-    const { exec } = require('child_process');
+    const { spawn } = require('child_process');
     const spinner = ora(`Running: ${command}`).start();
-    const execOptions = {
+    const spawnOptions = {
       env: { ...process.env, PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin' },
       shell: true,
       cwd: process.cwd(),
     };
+    this.logger('info', `▶️  ${command}`);
     return new Promise((resolve, reject) => {
-      exec(command, execOptions, (error, stdout, stderr) => {
-        if (error) {
-          spinner.fail(`Failed: ${command}`);
-          console.log(chalk.gray(`Error: ${error.message}`));
-          if (stderr) console.log(chalk.gray(`Stderr: ${stderr.trim()}`));
-          reject(error);
-        } else {
+      const child = spawn(command, [], spawnOptions);
+      let stdoutAll = '';
+      let stderrAll = '';
+      child.stdout.on('data', (data) => {
+        const text = data.toString();
+        stdoutAll += text;
+        if (this.verbose) process.stdout.write(chalk.gray(text));
+        String(text)
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .forEach((line) => this.logger('info', line));
+      });
+      child.stderr.on('data', (data) => {
+        const text = data.toString();
+        stderrAll += text;
+        if (this.verbose) process.stderr.write(chalk.red(text));
+        String(text)
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .forEach((line) => this.logger('warning', line));
+      });
+      child.on('close', (code) => {
+        if (code === 0) {
           spinner.succeed(`Completed: ${command}`);
-          if (this.verbose && stdout) process.stdout.write(chalk.gray(stdout));
-          resolve(stdout);
+          this.logger('success', `✅ Completed: ${command}`);
+          resolve(stdoutAll);
+        } else {
+          spinner.fail(`Failed: ${command} (exit ${code})`);
+          const errMsg = stderrAll || `Command failed with exit code ${code}`;
+          this.logger('error', `❌ ${errMsg}`);
+          reject(new Error(errMsg));
         }
+      });
+      child.on('error', (err) => {
+        spinner.fail(`Error: ${command}`);
+        this.logger('error', `❌ ${err.message}`);
+        reject(err);
       });
     });
   }
@@ -54,27 +87,38 @@ class LocalInstaller {
           const actualNodePath = nodePath.trim().split('\n')[0];
           await this.executeCommandLocally(`"${actualNodePath}" --version`);
           console.log(chalk.green('✅ Node.js is already installed'));
+          this.logger('success', '✅ Node.js is already installed');
         } else {
           const nodeCheckCommand = process.platform === 'win32' ? 'where node' : 'which node';
           await this.executeCommandLocally(nodeCheckCommand);
           await this.executeCommandLocally('node --version');
           console.log(chalk.green('✅ Node.js is already installed'));
+          this.logger('success', '✅ Node.js is already installed');
         }
       } catch (error) {
         console.log(chalk.red('❌ Node.js is not installed locally'));
         console.log(chalk.yellow('💡 Please install Node.js from https://nodejs.org/'));
         console.log(chalk.gray("   After installing Node.js, make sure it's in your PATH"));
-        process.exit(1);
+        if (this.exitOnFailure) {
+          process.exit(1);
+        } else {
+          throw error;
+        }
       }
 
       // npm check
       try {
         await this.executeCommandLocally('npm --version');
         console.log(chalk.green('✅ npm is available'));
+        this.logger('success', '✅ npm is available');
       } catch (error) {
         console.log(chalk.red('❌ npm is not available'));
         console.log(chalk.yellow('💡 Please ensure npm is installed with Node.js'));
-        process.exit(1);
+        if (this.exitOnFailure) {
+          process.exit(1);
+        } else {
+          throw error;
+        }
       }
 
       const validatedRegistry = validateRegistryUrl(registry);
@@ -88,94 +132,122 @@ class LocalInstaller {
       console.log(chalk.green.bold('\n✅ Claude Code installed successfully on your computer!'));
       console.log(chalk.cyan('🎉 You can now use `claude` and `ccr` commands locally.'));
       console.log(chalk.blue('\nℹ️  Tip: You can configure default models via `ccr ui` or by editing ~/.claude-code-router/config.json'));
+      this.logger('success', '🎉 Local installation completed successfully');
     } catch (error) {
       console.error(chalk.red.bold('\n❌ Local installation failed:'), error.message);
-      process.exit(1);
+      this.logger('error', `❌ Local installation failed: ${error.message}`);
+      if (this.exitOnFailure) {
+        process.exit(1);
+      } else {
+        throw error;
+      }
     }
   }
 
-  async generateUCloudConfig(apiKey, baseUrl = 'https://deepseek.modelverse.cn') {
+  async generateMultiProviderConfig(providers) {
     const configDir = path.join(os.homedir(), '.claude-code-router');
     const configPath = path.join(configDir, 'config.json');
+    
+    if (!providers || providers.length === 0) {
+      throw new Error('No providers specified');
+    }
+    
     try {
-      console.log(chalk.blue('🔍 Fetching available models from UCloud API...'));
-      const models = await fetchUCloudModels(baseUrl, apiKey);
-      const chatModels = filterChatModels(models);
-      const finalModels = chatModels.length > 0 ? chatModels : [
-        'Qwen/Qwen3-Coder',
-        'moonshotai/Kimi-K2-Instruct',
-        'deepseek-ai/DeepSeek-R1-0528',
-        'deepseek-ai/DeepSeek-V3-0324',
-        'zai-org/glm-4.5',
-      ];
-      const ucloudConfig = {
+      console.log(chalk.blue('🔍 Generating multi-provider configuration...'));
+      this.logger('info', '🔍 Generating multi-provider configuration...');
+      
+      const allProviders = [];
+      let defaultProvider = null;
+      
+      for (const provider of providers) {
+        let models = [];
+        
+        if (provider.name === 'openai') {
+          const { fetchOpenAIModels } = require('./services/openai');
+          console.log(chalk.blue(`📡 Fetching models from OpenAI...`));
+          this.logger('info', '📡 Fetching models from OpenAI...');
+          try {
+            models = await fetchOpenAIModels(provider.apiUrl, provider.apiKey);
+            models = filterChatModels(models);
+          } catch (e) {
+            console.log(chalk.yellow(`⚠️ Could not fetch OpenAI models, using defaults`));
+            this.logger('warning', '⚠️ Could not fetch OpenAI models, using defaults');
+            models = ['gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo'];
+          }
+        } else if (provider.name === 'ucloud') {
+          const { fetchUCloudModels } = require('./services/ucloud');
+          console.log(chalk.blue(`📡 Fetching models from UCloud...`));
+          this.logger('info', '📡 Fetching models from UCloud...');
+          try {
+            models = await fetchUCloudModels(provider.apiUrl, provider.apiKey);
+            models = filterChatModels(models);
+          } catch (e) {
+            console.log(chalk.yellow(`⚠️ Could not fetch UCloud models, using defaults`));
+            this.logger('warning', '⚠️ Could not fetch UCloud models, using defaults');
+            models = ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
+          }
+        } else if (provider.models) {
+          models = provider.models;
+        } else {
+          models = ['default-model'];
+        }
+        
+        allProviders.push({
+          name: provider.name,
+          api_base_url: `${provider.apiUrl}/v1/chat/completions`,
+          api_key: provider.apiKey,
+          models: models
+        });
+        
+        if (!defaultProvider && models.length > 0) {
+          defaultProvider = `${provider.name},${models[0]}`;
+        }
+        
+        console.log(chalk.green(`✅ Configured ${provider.name}: ${models.length} models`));
+        this.logger('success', `✅ Configured ${provider.name}: ${models.length} models`);
+      }
+      
+      const config = {
         LOG: false,
         CLAUDE_PATH: '',
         HOST: '127.0.0.1',
         PORT: 3456,
-        APIKEY: apiKey,
+        APIKEY: providers[0].apiKey, // Fallback API key
         API_TIMEOUT_MS: '600000',
         PROXY_URL: '',
         Transformers: [],
-        Providers: [
-          {
-            name: 'ucloud',
-            api_base_url: `${baseUrl}/v1/chat/completions`,
-            api_key: apiKey,
-            models: finalModels,
-          },
-        ],
+        Providers: allProviders,
         Router: {
-          default: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          background: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          think: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          longContext: 'ucloud,moonshotai/Kimi-K2-Instruct',
+          default: defaultProvider || 'openai,gpt-4-turbo-preview',
+          background: defaultProvider || 'openai,gpt-3.5-turbo',
+          think: defaultProvider || 'openai,gpt-4',
+          longContext: defaultProvider || 'openai,gpt-4-turbo-preview',
           longContextThreshold: 60000,
-          webSearch: 'ucloud,moonshotai/Kimi-K2-Instruct',
+          webSearch: defaultProvider || 'openai,gpt-3.5-turbo',
         },
       };
+      
       if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
-      fs.writeFileSync(configPath, JSON.stringify(ucloudConfig, null, 2));
-      console.log(chalk.green(`✅ UCloud config generated at: ${configPath}`));
-      console.log(chalk.blue(`🎯 Configured for: ${baseUrl}`));
-      console.log(chalk.yellow(`📋 Models available: ${models.join(', ')}`));
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      console.log(chalk.green(`✅ Multi-provider config generated at: ${configPath}`));
+      console.log(chalk.blue(`🎯 Configured ${allProviders.length} provider(s)`));
+      this.logger('success', `✅ Multi-provider config generated at: ${configPath}`);
+      this.logger('info', `🎯 Configured ${allProviders.length} provider(s)`);
     } catch (error) {
-      console.error(chalk.red('❌ Failed to generate UCloud config:'), error.message);
-      const finalModels = ['Qwen/Qwen3-Coder', 'moonshotai/Kimi-K2-Instruct', 'deepseek-ai/DeepSeek-R1-0528', 'deepseek-ai/DeepSeek-V3-0324', 'zai-org/glm-4.5'];
-      const fallbackConfig = {
-        LOG: false,
-        CLAUDE_PATH: '',
-        HOST: '127.0.0.1',
-        PORT: 3456,
-        APIKEY: apiKey,
-        API_TIMEOUT_MS: '600000',
-        PROXY_URL: '',
-        Transformers: [],
-        Providers: [
-          {
-            name: 'ucloud',
-            api_base_url: `${baseUrl}/v1/chat/completions`,
-            api_key: apiKey,
-            models: finalModels,
-            transformer: { use: [{ max_tokens: 16384 }] },
-          },
-        ],
-        Router: {
-          default: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          background: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          think: 'ucloud,Qwen/Qwen3-Coder',
-          longContext: 'ucloud,moonshotai/Kimi-K2-Instruct',
-          longContextThreshold: 60000,
-          webSearch: 'ucloud,moonshotai/Kimi-K2-Instruct',
-        },
-      };
-      if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
-      fs.writeFileSync(configPath, JSON.stringify(fallbackConfig, null, 2));
-      console.log(chalk.green(`✅ Fallback config generated at: ${configPath}`));
+      console.error(chalk.red('❌ Failed to generate multi-provider config:'), error.message);
+      this.logger('error', `❌ Failed to generate multi-provider config: ${error.message}`);
+      throw error;
     }
   }
 
-  // fetchUCloudModels moved to services/ucloud
+  // Legacy single-provider config generation (kept for backward compatibility)
+  async generateOpenAIConfig(apiKey, baseUrl = 'https://api.openai.com') {
+    return this.generateMultiProviderConfig([{
+      name: 'openai',
+      apiKey: apiKey,
+      apiUrl: baseUrl
+    }]);
+  }
 }
 
 module.exports = { LocalInstaller };
