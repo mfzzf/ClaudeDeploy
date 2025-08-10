@@ -95,7 +95,8 @@ async function runCli() {
     .option('--openai-key <key>', 'OpenAI API key for config generation')
     .option('--openai-url <url>', 'OpenAI base URL (default: https://api.openai.com)', 'https://api.openai.com')
     .option('--ucloud-key <key>', 'UCloud API key for config generation')
-    .option('--ucloud-url <url>', 'UCloud base URL (default: https://api.modelverse.cn)', 'https://api.modelverse.cn')
+    .option('--ucloud-url \u003curl\u003e', 'UCloud base URL (default: https://api.modelverse.cn)', 'https://api.modelverse.cn')
+    .option('--model \u003cmodel\u003e', 'Preferred default model for Router.default')
     .option('-h, --host <host>', 'Remote server hostname or IP (for remote installation)')
     .option('-u, --username <username>', 'SSH username (for remote installation)')
     .option('-p, --password <password>', 'SSH password (will prompt if not provided)')
@@ -122,7 +123,7 @@ async function runCli() {
           process.exit(1);
         }
         console.log(chalk.blue('🔧 Generating config for provider(s): ' + providers.map(p => p.name).join(', ')));
-        await local.generateMultiProviderConfig(providers);
+        await local.generateMultiProviderConfig(providers, options.model);
         return;
       }
 
@@ -139,7 +140,7 @@ async function runCli() {
         }
         if (providers.length > 0) {
           console.log(chalk.blue('🔧 Generating config for local installation...'));
-          await local.generateMultiProviderConfig(providers);
+          await local.generateMultiProviderConfig(providers, options.model);
         }
         await local.installLocal(options.registry);
         printPathHints(false);

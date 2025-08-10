@@ -243,7 +243,7 @@ class ClaudeRemoteInstaller {
     });
   }
 
-  async generateRemoteOpenAIConfig(username, apiKey, baseUrl = 'https://api.openai.com') {
+  async generateRemoteOpenAIConfig(username, apiKey, baseUrl = 'https://api.openai.com', preferredModel = null) {
     const remoteHome = await this.getRemoteHome(username);
     const remoteDir = `${remoteHome}/.claude-code-router`;
     const configPath = `${remoteDir}/config.json`;
@@ -257,6 +257,12 @@ class ClaudeRemoteInstaller {
         'gpt-3.5-turbo',
         'gpt-3.5-turbo-16k',
       ];
+      // Determine Router.default
+      let routerDefault = 'openai,gpt-4-turbo-preview';
+      if (preferredModel && finalModels.includes(preferredModel)) {
+        routerDefault = `openai,${preferredModel}`;
+      }
+
       const openaiConfig = {
         LOG: false,
         CLAUDE_PATH: '',
@@ -275,7 +281,7 @@ class ClaudeRemoteInstaller {
           },
         ],
         Router: {
-          default: 'openai,gpt-4-turbo-preview',
+          default: routerDefault,
           background: 'openai,gpt-3.5-turbo',
           think: 'openai,gpt-4',
           longContext: 'openai,gpt-4-turbo-preview',
@@ -324,7 +330,8 @@ class ClaudeRemoteInstaller {
     registry = null,
     openaiKey = null,
     openaiUrl = 'https://api.openai.com',
-    userInstall = false
+    userInstall = false,
+    preferredModel = null
   ) {
     try {
       console.log(chalk.blue.bold('🚀 Installing Claude Code on remote server...\n'));
@@ -343,7 +350,7 @@ class ClaudeRemoteInstaller {
       if (openaiKey) {
         console.log(chalk.blue('🔧 Using provided OpenAI API key for config generation...'));
         this.logger('info', '🔧 Using provided OpenAI API key for config generation...');
-        await this.generateRemoteOpenAIConfig(username, openaiKey, openaiUrl);
+        await this.generateRemoteOpenAIConfig(username, openaiKey, openaiUrl, preferredModel);
       } else if (!skipConfig) {
         await this.copyConfigFile(username, skipConfig);
       }

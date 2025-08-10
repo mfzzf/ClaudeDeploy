@@ -149,7 +149,7 @@ class LocalInstaller {
     }
   }
 
-  async generateMultiProviderConfig(providers) {
+  async generateMultiProviderConfig(providers, preferredModel = null) {
     const configDir = path.join(os.homedir(), '.claude-code-router');
     const configPath = path.join(configDir, 'config.json');
     
@@ -163,6 +163,7 @@ class LocalInstaller {
       
       const allProviders = [];
       let defaultProvider = null;
+      let foundPreferred = false;
       
       for (const provider of providers) {
         let models = [];
@@ -204,7 +205,10 @@ class LocalInstaller {
           models: models
         });
         
-        if (!defaultProvider && models.length > 0) {
+        if (!foundPreferred && preferredModel && models.includes(preferredModel)) {
+          defaultProvider = `${provider.name},${preferredModel}`;
+          foundPreferred = true;
+        } else if (!defaultProvider && models.length > 0) {
           defaultProvider = `${provider.name},${models[0]}`;
         }
         
