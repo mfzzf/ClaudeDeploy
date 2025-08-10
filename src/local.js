@@ -149,7 +149,7 @@ class LocalInstaller {
     }
   }
 
-  async generateMultiProviderConfig(providers, preferredModel = null) {
+  async generateMultiProviderConfig(providers, preferredModel = null, routerOverrides = null) {
     const configDir = path.join(os.homedir(), '.claude-code-router');
     const configPath = path.join(configDir, 'config.json');
     
@@ -168,7 +168,11 @@ class LocalInstaller {
       for (const provider of providers) {
         let models = [];
         
-        if (provider.name === 'openai') {
+        // If models are explicitly provided, use them
+        if (provider.models && provider.models.length > 0) {
+          models = provider.models;
+          console.log(chalk.blue(`📋 Using provided models for ${provider.name}`));
+        } else if (provider.name === 'openai') {
           const { fetchOpenAIModels } = require('./services/openai');
           console.log(chalk.blue(`📡 Fetching models from OpenAI...`));
           this.logger('info', '📡 Fetching models from OpenAI...');
@@ -192,8 +196,6 @@ class LocalInstaller {
             this.logger('warning', '⚠️ Could not fetch UCloud models, using defaults');
             models = ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
           }
-        } else if (provider.models) {
-          models = provider.models;
         } else {
           models = ['default-model'];
         }
@@ -216,6 +218,26 @@ class LocalInstaller {
         this.logger('success', `✅ Configured ${provider.name}: ${models.length} models`);
       }
       
+      // Build Router using overrides if provided
+      const Router = {
+        default: defaultProvider || 'openai,gpt-4-turbo-preview',
+        background: defaultProvider || 'openai,gpt-3.5-turbo',
+        think: defaultProvider || 'openai,gpt-4',
+        longContext: defaultProvider || 'openai,gpt-4-turbo-preview',
+        longContextThreshold: 60000,
+        webSearch: defaultProvider || 'openai,gpt-3.5-turbo',
+      };
+      if (routerOverrides && typeof routerOverrides === 'object') {
+        ['default','background','think','longContext','webSearch'].forEach(k => {
+          if (routerOverrides[k] && typeof routerOverrides[k] === 'string') {
+            Router[k] = routerOverrides[k];
+          }
+        });
+        if (typeof routerOverrides.longContextThreshold === 'number') {
+          Router.longContextThreshold = routerOverrides.longContextThreshold;
+        }
+      }
+
       const config = {
         LOG: false,
         CLAUDE_PATH: '',
@@ -226,14 +248,7 @@ class LocalInstaller {
         PROXY_URL: '',
         Transformers: [],
         Providers: allProviders,
-        Router: {
-          default: defaultProvider || 'openai,gpt-4-turbo-preview',
-          background: defaultProvider || 'openai,gpt-3.5-turbo',
-          think: defaultProvider || 'openai,gpt-4',
-          longContext: defaultProvider || 'openai,gpt-4-turbo-preview',
-          longContextThreshold: 60000,
-          webSearch: defaultProvider || 'openai,gpt-3.5-turbo',
-        },
+        Router,
       };
       
       if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });

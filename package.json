@@ -1,6 +1,6 @@
 {
   "name": "claudedeploy",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Deploy Claude Code to any server in seconds - automated SSH installation with zero-config authentication",
   "repository": {
     "type": "git",

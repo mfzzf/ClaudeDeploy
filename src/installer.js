@@ -243,51 +243,98 @@ class ClaudeRemoteInstaller {
     });
   }
 
-  async generateRemoteOpenAIConfig(username, apiKey, baseUrl = 'https://api.openai.com', preferredModel = null) {
+  async generateRemoteMultiProviderConfig(username, providers, preferredModel = null, routerOverrides = null) {
     const remoteHome = await this.getRemoteHome(username);
     const remoteDir = `${remoteHome}/.claude-code-router`;
     const configPath = `${remoteDir}/config.json`;
-    this.spinner = ora('Generating OpenAI config on remote server...').start();
+    this.spinner = ora('Generating multi-provider config on remote server...').start();
     try {
-      const models = await fetchOpenAIModels(baseUrl, apiKey);
-      const chatModels = filterChatModels(models);
-      const finalModels = chatModels.length > 0 ? chatModels : [
-        'gpt-4-turbo-preview',
-        'gpt-4',
-        'gpt-3.5-turbo',
-        'gpt-3.5-turbo-16k',
-      ];
-      // Determine Router.default
-      let routerDefault = 'openai,gpt-4-turbo-preview';
-      if (preferredModel && finalModels.includes(preferredModel)) {
-        routerDefault = `openai,${preferredModel}`;
+      const allProviders = [];
+      let defaultProvider = null;
+      let foundPreferred = false;
+      
+      // Process each provider
+      for (const provider of providers) {
+        let models = [];
+        
+        if (provider.name === 'openai') {
+          try {
+            const fetchedModels = await fetchOpenAIModels(provider.apiUrl || 'https://api.openai.com', provider.apiKey);
+            const chatModels = filterChatModels(fetchedModels);
+            models = chatModels.length > 0 ? chatModels : [
+              'gpt-4-turbo-preview',
+              'gpt-4',
+              'gpt-3.5-turbo',
+              'gpt-3.5-turbo-16k',
+            ];
+          } catch (e) {
+            models = ['gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo'];
+          }
+        } else if (provider.name === 'ucloud') {
+          const { fetchUCloudModels } = require('./services/ucloud');
+          try {
+            const fetchedModels = await fetchUCloudModels(provider.apiUrl || 'https://api.modelverse.cn', provider.apiKey);
+            models = filterChatModels(fetchedModels);
+          } catch (e) {
+            models = ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'];
+          }
+        } else if (provider.name === 'custom') {
+          // For custom providers, try OpenAI-compatible endpoint
+          try {
+            const fetchedModels = await fetchOpenAIModels(provider.apiUrl, provider.apiKey);
+            models = filterChatModels(fetchedModels);
+          } catch (e) {
+            models = ['default-model'];
+          }
+        }
+        
+        allProviders.push({
+          name: provider.name,
+          api_base_url: `${provider.apiUrl}/v1/chat/completions`,
+          api_key: provider.apiKey,
+          models: models
+        });
+        
+        // Set default provider and model
+        if (!foundPreferred && preferredModel && models.includes(preferredModel)) {
+          defaultProvider = `${provider.name},${preferredModel}`;
+          foundPreferred = true;
+        } else if (!defaultProvider && models.length > 0) {
+          defaultProvider = `${provider.name},${models[0]}`;
+        }
+      }
+      
+      // Build Router configuration
+      let routerConfig = {
+        default: defaultProvider || 'openai,gpt-4-turbo-preview',
+        background: defaultProvider || 'openai,gpt-3.5-turbo',
+        think: defaultProvider || 'openai,gpt-4',
+        longContext: defaultProvider || 'openai,gpt-4-turbo-preview',
+        longContextThreshold: 60000,
+        webSearch: defaultProvider || 'openai,gpt-3.5-turbo',
+      };
+
+      // Apply router overrides if provided
+      if (routerOverrides && typeof routerOverrides === 'object') {
+        Object.keys(routerOverrides).forEach((field) => {
+          const value = routerOverrides[field];
+          if (value && typeof value === 'string') {
+            routerConfig[field] = value;
+          }
+        });
       }
 
-      const openaiConfig = {
+      const config = {
         LOG: false,
         CLAUDE_PATH: '',
         HOST: '127.0.0.1',
         PORT: 3456,
-        APIKEY: apiKey,
+        APIKEY: providers[0].apiKey, // Fallback API key
         API_TIMEOUT_MS: '600000',
         PROXY_URL: '',
         Transformers: [],
-        Providers: [
-          {
-            name: 'openai',
-            api_base_url: `${baseUrl}/v1/chat/completions`,
-            api_key: apiKey,
-            models: finalModels,
-          },
-        ],
-        Router: {
-          default: routerDefault,
-          background: 'openai,gpt-3.5-turbo',
-          think: 'openai,gpt-4',
-          longContext: 'openai,gpt-4-turbo-preview',
-          longContextThreshold: 60000,
-          webSearch: 'openai,gpt-3.5-turbo',
-        },
+        Providers: allProviders,
+        Router: routerConfig,
       };
       await new Promise((resolve, reject) => {
         this.conn.exec(`mkdir -p ${remoteDir} && chmod 700 ${remoteDir}`, (mkErr) => {
@@ -297,17 +344,20 @@ class ClaudeRemoteInstaller {
             const stream = sftp.createWriteStream(configPath, { mode: 0o600 });
             stream.on('error', reject);
             stream.on('close', resolve);
-            stream.end(Buffer.from(JSON.stringify(openaiConfig, null, 2)));
+            stream.end(Buffer.from(JSON.stringify(config, null, 2)));
           });
         });
       });
-      this.spinner.succeed('OpenAI config generated on remote server');
+      this.spinner.succeed('Multi-provider config generated on remote server');
       console.log(chalk.green(`✅ Config file created at: ${configPath}`));
-      console.log(chalk.yellow(`📋 Models available: ${finalModels.join(', ')}`));
-      this.logger('success', `✅ OpenAI config generated on remote server at: ${configPath}`);
+      console.log(chalk.yellow(`📋 Configured ${allProviders.length} provider(s):`));
+      allProviders.forEach(p => {
+        console.log(chalk.blue(`   - ${p.name}: ${p.models.length} models`));
+      });
+      this.logger('success', `✅ Multi-provider config generated on remote server at: ${configPath}`);
     } catch (e) {
-      this.spinner.fail('Failed to generate remote OpenAI config');
-      this.logger('error', `❌ Failed to generate remote OpenAI config: ${e.message}`);
+      this.spinner.fail('Failed to generate remote multi-provider config');
+      this.logger('error', `❌ Failed to generate remote multi-provider config: ${e.message}`);
       throw e;
     }
   }
@@ -321,6 +371,7 @@ class ClaudeRemoteInstaller {
     if (this.conn) this.conn.end();
   }
 
+  // Legacy single-provider remote install (backward compatibility)
   async installRemote(
     host,
     username,
@@ -331,7 +382,42 @@ class ClaudeRemoteInstaller {
     openaiKey = null,
     openaiUrl = 'https://api.openai.com',
     userInstall = false,
-    preferredModel = null
+    preferredModel = null,
+    routerOverrides = null
+  ) {
+    // Convert to multi-provider format if openaiKey is provided
+    const providers = openaiKey ? [{
+      name: 'openai',
+      apiKey: openaiKey,
+      apiUrl: openaiUrl
+    }] : [];
+    
+    return this.installRemoteWithProviders(
+      host,
+      username,
+      auth,
+      port,
+      skipConfig,
+      registry,
+      providers,
+      userInstall,
+      preferredModel,
+      routerOverrides
+    );
+  }
+  
+  // New multi-provider remote install
+  async installRemoteWithProviders(
+    host,
+    username,
+    auth,
+    port,
+    skipConfig = false,
+    registry = null,
+    providers = [],
+    userInstall = false,
+    preferredModel = null,
+    routerOverrides = null
   ) {
     try {
       console.log(chalk.blue.bold('🚀 Installing Claude Code on remote server...\n'));
@@ -347,10 +433,10 @@ class ClaudeRemoteInstaller {
       await this.installNpm();
       await this.installClaudeCode(registry, !userInstall);
 
-      if (openaiKey) {
-        console.log(chalk.blue('🔧 Using provided OpenAI API key for config generation...'));
-        this.logger('info', '🔧 Using provided OpenAI API key for config generation...');
-        await this.generateRemoteOpenAIConfig(username, openaiKey, openaiUrl, preferredModel);
+      if (providers && providers.length > 0) {
+        console.log(chalk.blue(`🔧 Generating config for ${providers.length} provider(s)...`));
+        this.logger('info', `🔧 Generating config for ${providers.length} provider(s)...`);
+        await this.generateRemoteMultiProviderConfig(username, providers, preferredModel, routerOverrides);
       } else if (!skipConfig) {
         await this.copyConfigFile(username, skipConfig);
       }

@@ -98,6 +98,30 @@ class UIServer {
       }
     });
 
+    this.app.post('/api/fetch-models', async (req, res) => {
+      try {
+        const { provider, apiKey, apiUrl } = req.body;
+        let models = [];
+        
+        if (provider === 'openai') {
+          const { fetchOpenAIModels } = require('./services/openai');
+          models = await fetchOpenAIModels(apiUrl, apiKey);
+        } else if (provider === 'ucloud') {
+          const { fetchUCloudModels } = require('./services/ucloud');
+          models = await fetchUCloudModels(apiUrl, apiKey);
+        } else if (provider === 'custom') {
+          // For custom providers, try OpenAI-compatible endpoint
+          const { fetchOpenAIModels } = require('./services/openai');
+          models = await fetchOpenAIModels(apiUrl, apiKey);
+        }
+        
+        // Return all models without filtering
+        res.json({ success: true, models });
+      } catch (error) {
+        res.status(500).json({ error: error.message, models: [] });
+      }
+    });
+
     this.app.post('/api/generate-config', async (req, res) => {
       try {
         const configPath = await this.handleGenerateConfig(req.body);
@@ -275,7 +299,7 @@ class UIServer {
           }
         }
         if (providersArr.length > 0) {
-          await installer.generateMultiProviderConfig(providersArr);
+          await installer.generateMultiProviderConfig(providersArr, config.model || null, config.router || null);
         }
       }
       
@@ -333,33 +357,50 @@ class UIServer {
         }
       }
       
-      // Prepare API keys
-      let openaiKey = null, openaiUrl = null;
-      let ucloudKey = null, ucloudUrl = null;
+      // Prepare providers array for multi-provider config
+      let providersArr = [];
       
       if (config.providers) {
-        if (config.providers.openai?.enabled && config.providers.openai?.apiKey) {
-          openaiKey = config.providers.openai.apiKey;
-          openaiUrl = config.providers.openai.url || 'https://api.openai.com';
-        }
-        
-        if (config.providers.ucloud?.enabled && config.providers.ucloud?.apiKey) {
-          ucloudKey = config.providers.ucloud.apiKey;
-          ucloudUrl = config.providers.ucloud.url || 'https://api.modelverse.cn';
+        const p = config.providers;
+        if (Array.isArray(p)) {
+          providersArr = p;
+        } else {
+          if (p.openai?.enabled && p.openai?.apiKey) {
+            providersArr.push({ 
+              name: 'openai', 
+              apiKey: p.openai.apiKey, 
+              apiUrl: p.openai.url || 'https://api.openai.com' 
+            });
+          }
+          if (p.ucloud?.enabled && p.ucloud?.apiKey) {
+            providersArr.push({ 
+              name: 'ucloud', 
+              apiKey: p.ucloud.apiKey, 
+              apiUrl: p.ucloud.url || 'https://api.modelverse.cn' 
+            });
+          }
+          if (p.custom?.enabled && p.custom?.apiKey && (p.custom.customUrl || p.custom.url)) {
+            providersArr.push({ 
+              name: 'custom', 
+              apiKey: p.custom.apiKey, 
+              apiUrl: p.custom.customUrl || p.custom.url 
+            });
+          }
         }
       }
       
-      // Run remote installation
-      await installer.installRemote(
+      // Run remote installation with multi-provider support
+      await installer.installRemoteWithProviders(
         config.host,
         config.username,
         auth,
         parseInt(config.port || 22),
         config.skipConfig,
         config.registry,
-        openaiKey,
-        openaiUrl,
-        config.userInstall
+        providersArr,
+        config.userInstall,
+        config.model || null,
+        config.router || null
       );
       
       installation.status = 'success';
@@ -390,7 +431,7 @@ class UIServer {
         logger: (level, message) => this.sendLog(message, level),
         exitOnFailure: false,
       });
-      await installer.generateMultiProviderConfig(config.providers);
+      await installer.generateMultiProviderConfig(config.providers, config.model || null, config.router || null);
       
       const configPath = path.join(os.homedir(), '.claude-code-router', 'config.json');
       

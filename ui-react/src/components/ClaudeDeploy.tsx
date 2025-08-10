@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { motion, AnimatePresence } from 'framer-motion'
+import FancyConfetti from './FancyConfetti'
+import ProviderModelSelector from './ProviderModelSelector'
 import { 
   Rocket, 
   Server, 
@@ -14,7 +16,9 @@ import {
   Cloud,
   Key,
   Sparkles,
-  Copy
+  Copy,
+  RefreshCw,
+  ChevronDown
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
@@ -32,6 +36,8 @@ interface Provider {
   apiKey: string
   url: string
   customUrl?: string
+  models?: string[]
+  fetchingModels?: boolean
 }
 
 interface Installation {
@@ -44,6 +50,7 @@ interface Installation {
 }
 
 interface ConsoleLog {
+  id: string
   type: string
   message: string
   timestamp?: string
@@ -104,6 +111,59 @@ export default function ClaudeDeploy() {
     skipConfig: false,
     userInstall: false,
   })
+  
+  // Router configuration state - separate for each provider
+  const [routerConfigs, setRouterConfigs] = useState<Record<string, Record<string, string>>>({
+    openai: {
+      default: '',
+      background: '',
+      think: '',
+      longContext: '',
+      webSearch: ''
+    },
+    ucloud: {
+      default: '',
+      background: '',
+      think: '',
+      longContext: '',
+      webSearch: ''
+    },
+    custom: {
+      default: '',
+      background: '',
+      think: '',
+      longContext: '',
+      webSearch: ''
+    }
+  })
+  
+  // Build merged router config from all providers
+  const getMergedRouterConfig = () => {
+    const merged: Record<string, string> = {
+      default: '',
+      background: '',
+      think: '',
+      longContext: '',
+      webSearch: ''
+    }
+    
+    // Merge configs from enabled providers, with priority order: custom > ucloud > openai
+    const priorityOrder = ['custom', 'ucloud', 'openai']
+    
+    for (const field of ['default', 'background', 'think', 'longContext', 'webSearch']) {
+      for (const providerKey of priorityOrder) {
+        if (providers[providerKey]?.enabled && routerConfigs[providerKey][field]) {
+          merged[field] = `${providerKey},${routerConfigs[providerKey][field]}`
+          break // Use the first enabled provider with a value for this field
+        }
+      }
+    }
+    
+    return merged
+  }
+  
+  // Models list expanded state
+  const [modelsExpanded, setModelsExpanded] = useState<Record<string, boolean>>({})
 
   // WebSocket connection
   useEffect(() => {
@@ -200,7 +260,73 @@ export default function ClaudeDeploy() {
   }, [])
 
   const addConsoleLog = (type: string, message: string, timestamp?: string) => {
-    setConsoleOutput(prev => [...prev, { type, message, timestamp }].slice(-100))
+    const logId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    setConsoleOutput(prev => {
+      // Check for duplicate logs with same message and similar timestamp (within 100ms)
+      const isDuplicate = prev.some(log => {
+        if (log.message === message && log.timestamp && timestamp) {
+          const prevTime = new Date(log.timestamp).getTime()
+          const newTime = new Date(timestamp).getTime()
+          return Math.abs(prevTime - newTime) < 100
+        }
+        return false
+      })
+      
+      if (isDuplicate) {
+        return prev
+      }
+      
+      return [...prev, { id: logId, type, message, timestamp }].slice(-100)
+    })
+  }
+  
+  // Fetch models for a provider
+  const handleFetchModels = async (provider: Provider) => {
+    const key = provider.id
+    const apiUrl = key === 'custom' ? (provider.customUrl || provider.url) : provider.url
+    
+    if (!provider.apiKey || !apiUrl) {
+      addConsoleLog('warning', `⚠️ Please provide API Key and URL for ${provider.name}`)
+      return
+    }
+    
+    setProviders(prev => ({
+      ...prev,
+      [key]: { ...prev[key], fetchingModels: true }
+    }))
+    
+    try {
+      const res = await fetch('/api/fetch-models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: key,
+          apiKey: provider.apiKey,
+          apiUrl: apiUrl
+        })
+      })
+      
+      const data = await res.json()
+      if (data.models && data.models.length > 0) {
+        setProviders(prev => ({
+          ...prev,
+          [key]: { ...prev[key], models: data.models, fetchingModels: false }
+        }))
+        addConsoleLog('success', `✅ Fetched ${data.models.length} models for ${provider.name}`)
+      } else {
+        setProviders(prev => ({
+          ...prev,
+          [key]: { ...prev[key], fetchingModels: false }
+        }))
+        addConsoleLog('warning', `⚠️ No models found for ${provider.name}`)
+      }
+    } catch (error: any) {
+      setProviders(prev => ({
+        ...prev,
+        [key]: { ...prev[key], fetchingModels: false }
+      }))
+      addConsoleLog('error', `❌ Failed to fetch models: ${error.message}`)
+    }
   }
 
   // Auto scroll to bottom on new logs
@@ -227,10 +353,11 @@ export default function ClaudeDeploy() {
     try {
       setIsInstalling(true)
       addConsoleLog('info', '🚀 正在开始本地安装...', new Date().toISOString())
+      const preferredModel = Object.values(providers).find(p => p.enabled && p.defaultModel)?.defaultModel
       const res = await fetch('/api/install/local', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ providers: selectedProviders }),
+        body: JSON.stringify({ providers: selectedProviders, model: preferredModel || undefined, router: getMergedRouterConfig() }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`)
@@ -265,6 +392,7 @@ export default function ClaudeDeploy() {
     try {
       setIsInstalling(true)
       addConsoleLog('info', '☁️ Starting remote installation...', new Date().toISOString())
+      const preferredModel = Object.values(providers).find(p => p.enabled && p.defaultModel)?.defaultModel
       const body: any = {
         host: remote.host,
         port: remote.port,
@@ -272,6 +400,8 @@ export default function ClaudeDeploy() {
         registry: remote.registry || undefined,
         skipConfig: remote.skipConfig || undefined,
         userInstall: remote.userInstall || undefined,
+        model: preferredModel || undefined,
+        router: getMergedRouterConfig(),
         providers: {
           openai: providers.openai,
           ucloud: providers.ucloud,
@@ -323,10 +453,11 @@ export default function ClaudeDeploy() {
     }
     try {
       addConsoleLog('info', '🔧 Generating configuration...', new Date().toISOString())
+      const preferredModel = Object.values(providers).find(p => p.enabled && p.defaultModel)?.defaultModel
       const res = await fetch('/api/generate-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ providers: selectedProviders }),
+        body: JSON.stringify({ providers: selectedProviders, model: preferredModel || undefined, router: getMergedRouterConfig() }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`)
@@ -384,16 +515,7 @@ export default function ClaudeDeploy() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              {confettiPieces.map(piece => (
-                <motion.div
-                  key={piece.id}
-                  className="absolute w-2 h-3"
-                  style={{ left: `${piece.left}vw`, top: '-10px', backgroundColor: piece.color, borderRadius: 2 }}
-                  initial={{ y: -20, rotate: 0, opacity: 1 }}
-                  animate={{ y: '85vh', rotate: piece.rotate, opacity: 1 }}
-                  transition={{ delay: piece.delay, duration: piece.duration, ease: 'easeOut' }}
-                />
-              ))}
+              <FancyConfetti active={true} duration={2600} onComplete={() => setShowConfetti(false)} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -506,86 +628,15 @@ export default function ClaudeDeploy() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {/* Provider Selection */}
-                    <div className="space-y-4">
-                      <Label className="text-white">Select Providers</Label>
-                      <div className="grid grid-cols-3 gap-4">
-                        {Object.entries(providers).map(([key, provider]) => (
-                          <motion.div
-                            key={key}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                              provider.enabled 
-                                ? 'bg-purple-500/20 border-purple-400' 
-                                : 'bg-white/5 border-white/10'
-                            }`}
-                            onClick={() => setProviders(prev => ({
-                              ...prev,
-                              [key]: { ...prev[key], enabled: !prev[key].enabled }
-                            }))}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-white font-medium">{provider.name}</span>
-                              <div className={`w-5 h-5 rounded-full ${
-                                provider.enabled ? 'bg-purple-400' : 'bg-gray-600'
-                              }`}>
-                                {provider.enabled && (
-                                  <CheckCircle className="w-5 h-5 text-white" />
-                                )}
-                              </div>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Provider Configurations */}
-                    {Object.entries(providers).map(([key, provider]) => 
-                      provider.enabled && (
-                        <motion.div
-                          key={key}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="space-y-4 p-4 bg-white/5 rounded-lg"
-                        >
-                          <h3 className="text-white font-medium flex items-center gap-2">
-                            <Key className="w-4 h-4" />
-                            {provider.name} Configuration
-                          </h3>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor={`${key}-key`} className="text-gray-300">API Key</Label>
-                              <Input 
-                                id={`${key}-key`}
-                                type="password"
-                                placeholder="Enter your API key"
-                                className="bg-white/10 border-white/20 text-white"
-                                value={provider.apiKey}
-                                onChange={(e) => setProviders(prev => ({
-                                  ...prev,
-                                  [key]: { ...prev[key], apiKey: e.target.value }
-                                }))}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor={`${key}-url`} className="text-gray-300">API URL</Label>
-                              <Input 
-                                id={`${key}-url`}
-                                placeholder="API endpoint URL"
-                                className="bg-white/10 border-white/20 text-white"
-                                value={provider.url}
-                                onChange={(e) => setProviders(prev => ({
-                                  ...prev,
-                                  [key]: { ...prev[key], url: e.target.value }
-                                }))}
-                              />
-                            </div>
-                          </div>
-                        </motion.div>
-                      )
-                    )}
+                    <ProviderModelSelector
+                      providers={providers}
+                      setProviders={setProviders}
+                      routerConfigs={routerConfigs}
+                      setRouterConfigs={setRouterConfigs}
+                      modelsExpanded={modelsExpanded}
+                      setModelsExpanded={setModelsExpanded}
+                      handleFetchModels={handleFetchModels}
+                    />
 
                     {/* Installation Status */}
                     {isInstalling && (
@@ -637,8 +688,25 @@ export default function ClaudeDeploy() {
                       Deploy Claude AI to your remote servers
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <CardContent className="space-y-6">
+                    {/* Provider and Model Selection */}
+                    <ProviderModelSelector
+                      providers={providers}
+                      setProviders={setProviders}
+                      routerConfigs={routerConfigs}
+                      setRouterConfigs={setRouterConfigs}
+                      modelsExpanded={modelsExpanded}
+                      setModelsExpanded={setModelsExpanded}
+                      handleFetchModels={handleFetchModels}
+                    />
+                    
+                    {/* SSH Connection Settings */}
+                    <div className="space-y-4 p-4 bg-white/5 rounded-lg">
+                      <h3 className="text-white font-medium flex items-center gap-2">
+                        <Server className="w-4 h-4" />
+                        SSH Connection Settings
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="host" className="text-gray-300">Host Address</Label>
                         <Input 
@@ -718,8 +786,9 @@ export default function ClaudeDeploy() {
                         </div>
                       </>
                     )}
+                    </div>
                     
-                    <Button 
+                    <Button
                       onClick={handleRemoteInstall}
                       disabled={isInstalling}
                       className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
@@ -961,9 +1030,9 @@ export default function ClaudeDeploy() {
                 {consoleOutput.length === 0 ? (
                   <div className="text-gray-500">Waiting for output...</div>
                 ) : (
-                  consoleOutput.map((log, index) => (
+                  consoleOutput.map((log) => (
                     <motion.div
-                      key={index}
+                      key={log.id}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       className={`mb-1 ${
