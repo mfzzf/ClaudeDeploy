@@ -21,10 +21,7 @@ function fetchOpenAIModels(baseUrl, apiKey) {
         try {
           const response = JSON.parse(data);
           if (response.data && Array.isArray(response.data)) {
-            const models = response.data
-              .filter(m => m.id && m.id.includes('gpt'))
-              .map(m => m.id)
-              .filter(Boolean);
+const models = (response.data || []).map(m => m.id).filter(Boolean);
             resolve(models.length > 0 ? models : ['gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo']);
           } else {
             resolve(['gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo']);
